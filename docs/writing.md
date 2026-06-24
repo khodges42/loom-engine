@@ -8,6 +8,7 @@ A story needs a title, a start passage, and a `passages` table.
 
 ```yaml
 title: "The Tiny Door"
+version: 1
 start: foyer
 
 passages:
@@ -30,6 +31,69 @@ passages:
 ```
 
 `type` is optional for normal story passages. Use `type: ending` for endings and `type: character` for character creation.
+
+## Text Formatting
+
+Plain paragraphs are written as normal text. Leave a blank line between paragraphs.
+
+Loom supports a small Markdown-ish set of inline formatting:
+
+```yaml
+text: |
+  This is **bold**.
+  This is *italic*.
+  This is __underlined__.
+  This is [red|colored text].
+```
+
+Available text colors are `red`, `blue`, `green`, `gold`, and `muted`.
+
+For an indented block, start each line with `>`:
+
+```yaml
+text: |
+  > The letter is folded into a perfect square.
+  > The ink is still wet.
+```
+
+For dialogue, start a paragraph with the speaker name, a colon, and the line:
+
+```yaml
+text: |
+  Morgan: We should not open that door.
+
+  You open it anyway.
+```
+
+Loom renders the speaker name as a highlighted label and indents the spoken line. This is intentionally simple; it is just text formatting, not a character system.
+
+## Chapters
+
+Most stories should stay in one `story.yaml` file. For longer stories, Loom can also load extra chapter files.
+
+In `story.yaml`, list chapter files:
+
+```yaml
+chapters:
+  - chapters/cellar.yaml
+  - chapters/road.yaml
+```
+
+Each chapter file can define more passages:
+
+```yaml
+passages:
+  cellar:
+    title: "The Cellar"
+    text: |
+      The stairs end in a cold room.
+```
+
+Choices can `goto` passages from the main file or any loaded chapter. State is still global, so stats, flags, inventory, and endings can work across chapter files.
+
+Chapter files may also add top-level `context`, `stats`, `flags`, and `inventory`. Duplicate passage IDs are errors.
+
+Chapter loading needs a local server or hosted site. It will not work from the manual file picker fallback because browsers do not allow Loom to automatically read nearby files from disk.
 
 ## Choices
 
@@ -226,7 +290,22 @@ The text before the pipe is displayed. The text after the pipe is the context ID
 
 Loom stores saves in browser local storage. By default, Loom autosaves the current state whenever the game renders a passage.
 
-When the page opens or refreshes, Loom shows the front page. If a save exists, the front page includes an enabled Load Save button. If no save exists, the load button is disabled.
+When the page opens or refreshes, Loom shows the front page. If a compatible save exists, the front page includes an enabled Load Save button. If no save exists, the load button is disabled.
+
+Saves are stamped with:
+
+- the Loom engine version
+- your story `version`
+- a hash of the loaded story content
+
+If any of those change, Loom treats the old save as outdated and disables Load Save instead of loading possibly broken state.
+
+Set a top-level story version and bump it when story changes should invalidate old saves:
+
+```yaml
+title: "The Tiny Door"
+version: 2
+```
 
 During play, the toolbar includes Restart by default.
 

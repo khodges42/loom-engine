@@ -1,8 +1,9 @@
-/* Loom v0.2
+/* Loom v0.3
    Static choice-based interactive fiction engine.
    Folder philosophy: one directory = one game.
 */
 
+const LOOM_ENGINE_VERSION = "0.3.0";
 const STORY_FILE = "./story.yaml";
 const urlParams = new URLSearchParams(window.location.search);
 const DEBUG = urlParams.has("debug");
@@ -14,6 +15,7 @@ let story = null;
 let state = null;
 let validation = null;
 let statusMessage = "";
+let storyFingerprint = "";
 
 initTheme();
 main();
@@ -21,6 +23,7 @@ main();
 async function main() {
   try {
     story = await loadStory();
+    storyFingerprint = fingerprintStory(story);
     validation = validateStory(story);
 
     if (validation.errors.length && !SKIP_VALIDATION) {
@@ -47,7 +50,7 @@ function toggleTheme() {
   const next = current === "dark" ? "light" : "dark";
   document.body.dataset.theme = next;
   localStorage.setItem("loom:theme", next);
-  render();
+  updateThemeButton();
 }
 
 function themeButtonHtml() {
@@ -58,6 +61,14 @@ function themeButtonHtml() {
 function bindThemeButton() {
   const button = document.getElementById("theme-toggle");
   if (button) button.addEventListener("click", toggleTheme);
+}
+
+function updateThemeButton() {
+  const button = document.getElementById("theme-toggle");
+  if (!button) return;
+
+  const isDark = document.body.dataset.theme === "dark";
+  button.textContent = isDark ? "Light" : "Dark";
 }
 
 function storageKey() {
@@ -84,7 +95,9 @@ async function loadStory() {
   }
 
   const yamlText = await response.text();
-  return parseStoryYaml(yamlText);
+  const loadedStory = parseStoryYaml(yamlText);
+  await loadChapters(loadedStory);
+  return loadedStory;
 }
 
 function chooseStoryFile() {
@@ -111,7 +124,11 @@ function chooseStoryFile() {
       const reader = new FileReader();
       reader.addEventListener("load", () => {
         try {
-          resolve(parseStoryYaml(String(reader.result || "")));
+          const loadedStory = parseStoryYaml(String(reader.result || ""));
+          if (loadedStory.chapters) {
+            throw new Error("Chapter files need to be loaded through a local server. Run python3 -m http.server 8000, then open http://localhost:8000.");
+          }
+          resolve(loadedStory);
         } catch (error) {
           reject(error);
         }
@@ -138,6 +155,70 @@ function parseStoryYaml(yamlText) {
   }
 }
 
+async function loadChapters(loadedStory) {
+  const files = chapterFiles(loadedStory.chapters);
+  if (!files.length) return;
+
+  for (const file of files) {
+    const response = await fetch(file, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Could not load chapter ${file}: ${response.status} ${response.statusText}`);
+    }
+
+    const chapter = parseStoryYaml(await response.text());
+    mergeChapter(loadedStory, chapter, file);
+  }
+}
+
+function chapterFiles(chapters) {
+  if (!chapters) return [];
+
+  if (Array.isArray(chapters)) {
+    return chapters.map(chapterFile).filter(Boolean);
+  }
+
+  if (typeof chapters === "object") {
+    return Object.values(chapters).map(chapterFile).filter(Boolean);
+  }
+
+  return [];
+}
+
+function chapterFile(value) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object") return value.file || value.path || "";
+  return "";
+}
+
+function mergeChapter(base, chapter, source) {
+  if (!chapter || typeof chapter !== "object") {
+    throw new Error(`Chapter ${source} must be a YAML object.`);
+  }
+
+  base.passages ||= {};
+
+  for (const [id, passage] of Object.entries(chapter.passages || {})) {
+    if (base.passages[id]) {
+      throw new Error(`Chapter ${source} defines duplicate passage "${id}".`);
+    }
+    base.passages[id] = passage;
+  }
+
+  mergeObject(base, chapter, "context");
+  mergeObject(base, chapter, "stats");
+  mergeObject(base, chapter, "flags");
+
+  if (Array.isArray(chapter.inventory)) {
+    const existing = new Set(base.inventory || []);
+    base.inventory = [...existing, ...chapter.inventory.filter(item => !existing.has(item))];
+  }
+}
+
+function mergeObject(base, extra, key) {
+  if (!extra[key]) return;
+  base[key] = { ...(base[key] || {}), ...extra[key] };
+}
+
 function createInitialState() {
   return {
     scene: story.start,
@@ -155,18 +236,75 @@ function loadSave() {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
+    const savedState = parsed.state || parsed;
+    const meta = parsed.state ? parsed.meta || {} : legacySaveMeta();
 
-    parsed.stats = { ...(story.stats || {}), ...(parsed.stats || {}) };
-    parsed.flags = { ...(story.flags || {}), ...(parsed.flags || {}) };
-    parsed.inventory = Array.isArray(parsed.inventory) ? parsed.inventory : [];
-    parsed.character = parsed.character || {};
-    parsed.history = Array.isArray(parsed.history) ? parsed.history : [];
+    if (!saveMatches(meta)) return null;
 
-    if (!story.passages?.[parsed.scene]) return null;
-    return parsed;
+    savedState.stats = { ...(story.stats || {}), ...(savedState.stats || {}) };
+    savedState.flags = { ...(story.flags || {}), ...(savedState.flags || {}) };
+    savedState.inventory = Array.isArray(savedState.inventory) ? savedState.inventory : [];
+    savedState.character = savedState.character || {};
+    savedState.history = Array.isArray(savedState.history) ? savedState.history : [];
+
+    if (!story.passages?.[savedState.scene]) return null;
+    return savedState;
   } catch {
     return null;
   }
+}
+
+function loadSaveInfo() {
+  try {
+    const raw = localStorage.getItem(storageKey());
+    if (!raw) return { exists: false, loadable: false, reason: "" };
+
+    const parsed = JSON.parse(raw);
+    const meta = parsed.state ? parsed.meta || {} : legacySaveMeta();
+
+    if (saveMatches(meta)) return { exists: true, loadable: true, reason: "" };
+
+    return { exists: true, loadable: false, reason: staleSaveReason(meta) };
+  } catch {
+    return { exists: true, loadable: false, reason: "Save data is unreadable." };
+  }
+}
+
+function legacySaveMeta() {
+  return {
+    engineVersion: "legacy",
+    storyVersion: "",
+    storyHash: ""
+  };
+}
+
+function saveMatches(meta) {
+  return meta.engineVersion === LOOM_ENGINE_VERSION
+    && meta.storyVersion === storyVersion()
+    && meta.storyHash === storyFingerprint;
+}
+
+function staleSaveReason(meta) {
+  if (meta.engineVersion !== LOOM_ENGINE_VERSION) return "Save is from a different engine version.";
+  if (meta.storyVersion !== storyVersion()) return "Save is from a different story version.";
+  if (meta.storyHash !== storyFingerprint) return "Save is from different story content.";
+  return "Save is not compatible.";
+}
+
+function storyVersion() {
+  return String(story?.version ?? "1");
+}
+
+function saveEnvelope() {
+  return {
+    meta: {
+      engineVersion: LOOM_ENGINE_VERSION,
+      storyVersion: storyVersion(),
+      storyHash: storyFingerprint,
+      savedAt: new Date().toISOString()
+    },
+    state
+  };
 }
 
 function autoSaveGame() {
@@ -176,7 +314,7 @@ function autoSaveGame() {
 
 function writeSave(message) {
   try {
-    localStorage.setItem(storageKey(), JSON.stringify(state));
+    localStorage.setItem(storageKey(), JSON.stringify(saveEnvelope()));
     if (message !== undefined) statusMessage = message;
   } catch (error) {
     statusMessage = `Could not save: ${error.message || String(error)}`;
@@ -238,9 +376,12 @@ function renderHeader() {
 }
 
 function renderStartScreen() {
-  const saved = loadSave();
-  const loadDisabled = saved ? "" : "disabled";
-  const loadLabel = saved ? "Load Save" : "No Save Found";
+  const saveInfo = loadSaveInfo();
+  const loadDisabled = saveInfo.loadable ? "" : "disabled";
+  const loadLabel = saveInfo.loadable ? "Load Save" : saveInfo.exists ? "Save Outdated" : "No Save Found";
+  const saveNote = saveInfo.exists && !saveInfo.loadable
+    ? `<p class="save-note">${escapeHtml(saveInfo.reason)}</p>`
+    : "";
 
   app.innerHTML = `
     ${renderHeader()}
@@ -248,6 +389,7 @@ function renderStartScreen() {
     <section class="front-page">
       <button class="primary-button" id="start-button" type="button">Start</button>
       <button class="secondary-button" id="load-button" type="button" ${loadDisabled}>${loadLabel}</button>
+      ${saveNote}
     </section>
   `;
 
@@ -255,6 +397,7 @@ function renderStartScreen() {
 
   document.getElementById("start-button").addEventListener("click", startNewGame);
   document.getElementById("load-button").addEventListener("click", loadGame);
+  scrollToTop();
 }
 
 function renderDebugPanel() {
@@ -264,6 +407,9 @@ function renderDebugPanel() {
   lines.push("VALIDATION");
   lines.push(`Errors: ${validation.errors.length}`);
   lines.push(`Warnings: ${validation.warnings.length}`);
+  lines.push(`Engine: ${LOOM_ENGINE_VERSION}`);
+  lines.push(`Story version: ${storyVersion()}`);
+  lines.push(`Story hash: ${storyFingerprint}`);
   for (const error of validation.errors) lines.push(`ERROR: ${error}`);
   for (const warning of validation.warnings) lines.push(`WARN: ${warning}`);
   lines.push("");
@@ -310,7 +456,7 @@ function renderCharacter(passage) {
 
   const next = passage.goto;
   app.innerHTML = `
-    ${renderHeader()}
+    ${themeButtonHtml()}
     ${renderDebugPanel()}
     <h2 class="passage-title">${escapeHtml(passage.title || "Character")}</h2>
     <div class="story-text">${markdownish(interpolate(passage.text || "Before the story begins, tell us who you are."))}</div>
@@ -335,6 +481,7 @@ function renderCharacter(passage) {
   });
 
   bindToolbar();
+  scrollToTop();
 }
 
 function renderPassage(passage) {
@@ -348,7 +495,7 @@ function renderPassage(passage) {
   const passageTitle = passage.title ? `<h2 class="passage-title">${escapeHtml(passage.title)}</h2>` : "";
 
   app.innerHTML = `
-    ${renderHeader()}
+    ${themeButtonHtml()}
     ${renderDebugPanel()}
     ${passageTitle}
     <article class="story-text">${markdownish(interpolate(passage.text || ""))}</article>
@@ -374,6 +521,11 @@ function renderPassage(passage) {
   if (restartEnding) restartEnding.addEventListener("click", resetGame);
 
   bindToolbar();
+  scrollToTop();
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }
 
 function renderStatus() {
@@ -567,13 +719,57 @@ function markdownish(text) {
         return `<h2>${inlineText(trimmed.slice(3), 0)}</h2>`;
       }
 
+      if (trimmed.startsWith("> ")) {
+        const quote = trimmed
+          .split("\n")
+          .map(line => line.replace(/^>\s?/, ""))
+          .join("\n");
+        return `<blockquote>${inlineText(quote, 0).replace(/\n/g, "<br>")}</blockquote>`;
+      }
+
+      const dialogue = dialogueParts(trimmed);
+      if (dialogue) {
+        return `
+          <p class="dialogue">
+            <span class="dialogue-speaker">${inlineText(dialogue.speaker, 0)}</span>
+            <span class="dialogue-line">${inlineText(dialogue.line, 0).replace(/\n/g, "<br>")}</span>
+          </p>
+        `;
+      }
+
       return `<p>${inlineText(trimmed, 0).replace(/\n/g, "<br>")}</p>`;
     })
     .join("");
 }
 
+function dialogueParts(block) {
+  const match = block.match(/^([A-Z][A-Za-z0-9 ._'-]{0,40}):\s+([\s\S]+)/);
+  if (!match) return null;
+
+  return {
+    speaker: match[1].trim(),
+    line: match[2].trim()
+  };
+}
+
 function inlineText(text, depth = 0) {
-  return renderContextRefs(text, depth).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  return renderInlineFormatting(renderContextRefs(text, depth));
+}
+
+function renderInlineFormatting(html) {
+  return html
+    .replace(/\[([a-z]+)\|(.+?)\]/g, (_, color, content) => {
+      const safeColor = textColor(color);
+      return safeColor ? `<span class="text-${safeColor}">${content}</span>` : `[${color}|${content}]`;
+    })
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/__(.+?)__/g, '<span class="underline">$1</span>')
+    .replace(/(^|[^*])\*([^*\n]+?)\*/g, "$1<em>$2</em>");
+}
+
+function textColor(color) {
+  const colors = new Set(["red", "blue", "green", "gold", "muted"]);
+  return colors.has(color) ? color : "";
 }
 
 function renderContextRefs(text, depth) {
@@ -632,7 +828,7 @@ function validateStory(story) {
     return { errors: ["Story YAML must be an object."], warnings };
   }
 
-  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "start", "character", "context", "stats", "inventory", "flags", "passages", "debug"]);
+  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "start", "chapters", "character", "context", "stats", "inventory", "flags", "passages", "debug"]);
   warnUnknownFields(story, topFields, "top level", warnings);
 
   if (!story.title) warnings.push("Missing top-level title.");
@@ -826,4 +1022,31 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function fingerprintStory(value) {
+  return hashString(stableStringify(value));
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function hashString(value) {
+  let hash = 2166136261;
+
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }

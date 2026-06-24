@@ -1,7 +1,6 @@
 # Loom Todo
 
 This list only tracks work that still needs a decision or implementation. Completed items were removed or moved to `docs/devlog.md`.
-
 # Stretch
 ## Context Glossary Follow-Ups
 

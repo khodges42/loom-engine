@@ -80,7 +80,11 @@ passages:
       {{name}} stands in the foyer of an old house that should be empty.
 
       Rain taps against the windows. A [[tiny door|tiny_door]] waits beneath the stairs.
-      It is too small for a person, but it has a brass handle and a keyhole.
+      It is **too small** for a person, but it has a brass handle and a __keyhole__.
+
+      > The note beside it says: [red|DO NOT OPEN].
+
+      You: I really hope this is just a cupboard.
 
       Your first instinct is to {{first_instinct}}.
     choices:
@@ -117,7 +121,7 @@ passages:
     text: |
       The lantern is warm, though the glass is dark.
 
-      When you lift it, the [[tiny door|tiny_door]] clicks once.
+      When you lift it, the [[tiny door|tiny_door]] clicks once. The sound is *almost polite*.
     choices:
       - text: "Open the tiny door."
         goto: cellar

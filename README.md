@@ -141,17 +141,44 @@ Everything else grows from that.
 
 For the practical author guide and syntax reference, see [docs/writing.md](docs/writing.md).
 
+Dialogue can be written directly in passage text:
+
+```yaml
+text: |
+  Morgan: We should not open that door.
+
+  You open it anyway.
+```
+
+Loom highlights the speaker and indents the line, while keeping the source text easy to read.
+
+Passage text also supports a small set of formatting:
+
+```yaml
+text: |
+  This is **bold**, *italic*, and __underlined__.
+
+  > This is an indented block.
+
+  The warning is [red|not subtle].
+```
+
+The built-in color names are `red`, `blue`, `green`, `gold`, and `muted`.
+
 ## Built-In Features
 
 - Passages and choices
+- Simple text formatting for bold, italics, underline, color, quote blocks, and dialogue
 - Character creation fields
 - Optional stats, flags, and inventory
 - Readable `requires` conditions
 - Readable `effects`
 - Endings
-- Autosave by default, with Load Save on the front page when a save exists
+- Autosave by default, with Load Save on the front page when a compatible save exists
+- Save compatibility checks using engine version, story version, and story content hash
 - YAML validation with clear missing-passage and unknown-reference messages
 - Context glossary notes with `[[term]]` and `[[display text|context_id]]`
+- Optional chapter files for longer stories
 - Theme variables in `style.css`
 - Friendly local-file fallback when `story.yaml` cannot be fetched
 
