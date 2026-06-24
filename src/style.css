@@ -1,25 +1,28 @@
 :root {
   /*
-    ChoiceBook theme variables.
+    Loom theme variables.
     Authors can customize the book by editing these values.
 
-    --bg: browser/page background
-    --paper: main book page
-    --ink: primary text
-    --muted: secondary text
-    --line: borders/dividers
-    --accent: buttons/headings
-    --accent-ink: text on accent backgrounds
-    --shadow: book shadow
+    --loom-bg: browser/page background
+    --loom-paper: main book page
+    --loom-text: primary text
+    --loom-muted: secondary text
+    --loom-line: borders/dividers
+    --loom-accent: buttons/headings
+    --loom-accent-text: text on accent backgrounds
+    --loom-shadow: book shadow
   */
-  --bg: #171411;
-  --paper: #f4ead8;
-  --ink: #241b15;
-  --muted: #6d5d50;
-  --line: #d4c2a8;
-  --accent: #7b1f24;
-  --accent-ink: #fff8ef;
-  --shadow: rgba(0, 0, 0, 0.35);
+  --loom-bg: #f2efe8;
+  --loom-paper: #fffdf8;
+  --loom-text: #252525;
+  --loom-muted: #67615a;
+  --loom-line: #d8d2c8;
+  --loom-accent: #355f7d;
+  --loom-accent-text: #ffffff;
+  --loom-context-highlight: #244f6d;
+  --loom-context-bg: #fffdf8;
+  --loom-context-border: #c8d4dc;
+  --loom-shadow: rgba(35, 35, 35, 0.12);
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
@@ -27,14 +30,17 @@
 }
 
 body[data-theme="dark"] {
-  --bg: #090807;
-  --paper: #191411;
-  --ink: #f2e4cf;
-  --muted: #b8a895;
-  --line: #3a2e26;
-  --accent: #d77a83;
-  --accent-ink: #1b0d10;
-  --shadow: rgba(0, 0, 0, 0.65);
+  --loom-bg: #18191b;
+  --loom-paper: #222427;
+  --loom-text: #efede8;
+  --loom-muted: #b8b2aa;
+  --loom-line: #393d42;
+  --loom-accent: #8fc0df;
+  --loom-accent-text: #10202b;
+  --loom-context-highlight: #a8d2ea;
+  --loom-context-bg: #2b2f33;
+  --loom-context-border: #4d5c66;
+  --loom-shadow: rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -48,10 +54,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 30rem),
-    var(--bg);
-  color: var(--ink);
+  background: var(--loom-bg);
+  color: var(--loom-text);
   font-family: var(--serif);
   line-height: 1.6;
   padding: 1rem;
@@ -61,11 +65,11 @@ body {
   position: relative;
   width: min(760px, 100%);
   margin: 2rem auto;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 24px 80px var(--shadow);
-  padding: clamp(1.25rem, 4vw, 3rem);
+  background: var(--loom-paper);
+  border: 1px solid var(--loom-line);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px var(--loom-shadow);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
 }
 
 .theme-toggle {
@@ -74,48 +78,48 @@ body {
   right: 1rem;
   font-family: var(--sans);
   font-size: 0.85rem;
-  border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper), white 10%);
-  color: var(--muted);
-  border-radius: 999px;
+  border: 1px solid var(--loom-line);
+  background: color-mix(in srgb, var(--loom-paper), white 10%);
+  color: var(--loom-muted);
+  border-radius: 8px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
 }
 
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--loom-accent);
+  border-color: var(--loom-accent);
 }
 
 .book-title {
-  margin: 1.25rem 0 0.25rem;
-  font-size: clamp(2rem, 8vw, 4rem);
-  line-height: 0.95;
-  letter-spacing: -0.05em;
+  margin: 1rem 0 0.25rem;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 1;
+  letter-spacing: 0;
   text-align: center;
 }
 
 .book-meta {
   margin: 0 0 2rem;
   text-align: center;
-  color: var(--muted);
+  color: var(--loom-muted);
   font-family: var(--sans);
   font-size: 0.9rem;
 }
 
 .passage-title {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.35rem;
   text-align: center;
-  color: var(--accent);
-  font-size: 1.1rem;
+  color: var(--loom-accent);
+  font-size: 0.95rem;
   font-family: var(--sans);
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.08em;
 }
 
 .story-text {
-  font-size: clamp(1.1rem, 2vw, 1.3rem);
+  font-size: clamp(1.05rem, 2vw, 1.2rem);
   max-width: 62ch;
   margin: 0 auto 2rem;
 }
@@ -131,7 +135,53 @@ body {
 }
 
 .story-text strong {
-  color: var(--accent);
+  color: var(--loom-accent);
+}
+
+.context-term {
+  position: relative;
+  display: inline-block;
+  color: var(--loom-context-highlight);
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+  outline: none;
+}
+
+.context-term:focus-visible {
+  border-bottom-style: solid;
+}
+
+.context-box {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.55rem);
+  z-index: 2;
+  display: none;
+  width: min(18rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  border: 1px solid var(--loom-context-border);
+  border-radius: 8px;
+  background: var(--loom-context-bg);
+  color: var(--loom-text);
+  box-shadow: 0 10px 28px var(--loom-shadow);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.context-box strong,
+.context-box span {
+  display: block;
+}
+
+.context-box strong {
+  margin-bottom: 0.25rem;
+}
+
+.context-term:hover > .context-box,
+.context-term:focus > .context-box,
+.context-term:focus-within > .context-box {
+  display: block;
 }
 
 .choices {
@@ -139,7 +189,7 @@ body {
   gap: 0.85rem;
   margin: 2rem auto;
   max-width: 62ch;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--loom-line);
   padding-top: 1.5rem;
 }
 
@@ -148,17 +198,17 @@ body {
 .secondary-button {
   font: inherit;
   cursor: pointer;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
+  border-radius: 8px;
+  border: 1px solid var(--loom-accent);
   background: transparent;
-  color: var(--accent);
+  color: var(--loom-accent);
   padding: 0.85rem 1.1rem;
   transition: transform 120ms ease, background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .choice-button {
   text-align: left;
-  border-radius: 14px;
+  border-radius: 8px;
   font-size: 1rem;
   background: rgba(255, 255, 255, 0.12);
 }
@@ -167,25 +217,38 @@ body {
 .choice-button:focus-visible,
 .primary-button:hover,
 .primary-button:focus-visible {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--loom-accent);
+  color: var(--loom-accent-text);
   transform: translateY(-1px);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary-button:disabled:hover,
+.secondary-button:disabled:hover {
+  background: transparent;
+  color: var(--loom-muted);
+  transform: none;
+}
+
 .primary-button {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--loom-accent);
+  color: var(--loom-accent-text);
 }
 
 .secondary-button {
-  border-color: var(--line);
-  color: var(--muted);
+  border-color: var(--loom-line);
+  color: var(--loom-muted);
 }
 
 .secondary-button:hover,
 .secondary-button:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--loom-accent);
+  color: var(--loom-accent);
 }
 
 .status {
@@ -194,15 +257,15 @@ body {
   margin: 2rem auto 0;
   max-width: 62ch;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--loom-line);
   font-family: var(--sans);
   font-size: 0.9rem;
-  color: var(--muted);
+  color: var(--loom-muted);
 }
 
 .status h3 {
   margin: 0 0 0.35rem;
-  color: var(--ink);
+  color: var(--loom-text);
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -218,8 +281,8 @@ body {
 }
 
 .status-pill {
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  border: 1px solid var(--loom-line);
+  border-radius: 8px;
   padding: 0.25rem 0.55rem;
   background: rgba(255,255,255,0.10);
 }
@@ -230,6 +293,20 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 2rem;
+}
+
+.front-page {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 2rem auto 0;
+  max-width: 62ch;
+}
+
+.status-message {
+  margin: 0;
+  color: var(--loom-accent);
 }
 
 .character-form {
@@ -250,23 +327,24 @@ body {
 }
 
 .field input,
-.field select {
+.field select,
+.file-picker {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 1px solid var(--loom-line);
+  border-radius: 8px;
   padding: 0.8rem;
   font: inherit;
   background: rgba(255,255,255,0.20);
-  color: var(--ink);
+  color: var(--loom-text);
 }
 
 .validator {
   max-width: 62ch;
   margin: 0 auto 2rem;
   padding: 1rem;
-  border: 1px dashed var(--accent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--accent), transparent 90%);
+  border: 1px dashed var(--loom-accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--loom-accent), transparent 90%);
   font-family: var(--mono);
   font-size: 0.85rem;
   white-space: pre-wrap;

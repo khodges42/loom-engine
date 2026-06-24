@@ -13,6 +13,7 @@ const app = document.getElementById("app");
 let story = null;
 let state = null;
 let validation = null;
+let statusMessage = "";
 
 initTheme();
 main();
@@ -27,15 +28,15 @@ async function main() {
       return;
     }
 
-    state = loadSave() || createInitialState();
-    render();
+    state = createInitialState();
+    renderStartScreen();
   } catch (error) {
     renderFatalError(error);
   }
 }
 
 function initTheme() {
-  const saved = localStorage.getItem("choicebook:theme");
+  const saved = localStorage.getItem("loom:theme");
   const preferredDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme = saved || (preferredDark ? "dark" : "light");
   document.body.dataset.theme = theme;
@@ -45,13 +46,13 @@ function toggleTheme() {
   const current = document.body.dataset.theme === "dark" ? "dark" : "light";
   const next = current === "dark" ? "light" : "dark";
   document.body.dataset.theme = next;
-  localStorage.setItem("choicebook:theme", next);
+  localStorage.setItem("loom:theme", next);
   render();
 }
 
 function themeButtonHtml() {
   const isDark = document.body.dataset.theme === "dark";
-  return `<button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle color theme">${isDark ? "☀ Light" : "☾ Dark"}</button>`;
+  return `<button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle color theme">${isDark ? "Light" : "Dark"}</button>`;
 }
 
 function bindThemeButton() {
@@ -61,7 +62,7 @@ function bindThemeButton() {
 
 function storageKey() {
   const slug = story?.slug || slugify(story?.title || location.pathname);
-  return `choicebook:${slug}:save`;
+  return `loom:${slug}:save`;
 }
 
 function slugify(value) {
@@ -73,13 +74,55 @@ function slugify(value) {
 }
 
 async function loadStory() {
+  if (location.protocol === "file:") {
+    return chooseStoryFile();
+  }
+
   const response = await fetch(STORY_FILE, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Could not load ${STORY_FILE}: ${response.status} ${response.statusText}`);
   }
 
   const yamlText = await response.text();
+  return parseStoryYaml(yamlText);
+}
 
+function chooseStoryFile() {
+  return new Promise((resolve, reject) => {
+    app.innerHTML = `
+      ${themeButtonHtml()}
+      <section class="error-screen">
+        <h1>Load story.yaml</h1>
+        <p>Loom could not load <code>${escapeHtml(STORY_FILE)}</code> because this page was opened directly from your filesystem.</p>
+        <p>Browsers block local YAML loading for security reasons. To preview through a local server, run:</p>
+        <pre class="validator">python3 -m http.server 8000</pre>
+        <p>Then open <code>http://localhost:8000</code>.</p>
+        <p>You can also choose your story file manually:</p>
+        <input class="file-picker" id="story-file-picker" type="file" accept=".yaml,.yml" />
+      </section>
+    `;
+    bindThemeButton();
+
+    const picker = document.getElementById("story-file-picker");
+    picker.addEventListener("change", () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        try {
+          resolve(parseStoryYaml(String(reader.result || "")));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      reader.addEventListener("error", () => reject(new Error(`Could not read ${file.name}.`)));
+      reader.readAsText(file);
+    });
+  });
+}
+
+function parseStoryYaml(yamlText) {
   if (!window.jsyaml) {
     throw new Error("YAML parser not found. Make sure js-yaml is loaded before engine.js.");
   }
@@ -126,18 +169,49 @@ function loadSave() {
   }
 }
 
-function saveGame() {
-  localStorage.setItem(storageKey(), JSON.stringify(state));
+function autoSaveGame() {
+  if (story?.ui?.auto_save === false) return;
+  writeSave();
+}
+
+function writeSave(message) {
+  try {
+    localStorage.setItem(storageKey(), JSON.stringify(state));
+    if (message !== undefined) statusMessage = message;
+  } catch (error) {
+    statusMessage = `Could not save: ${error.message || String(error)}`;
+  }
+}
+
+function loadGame() {
+  const saved = loadSave();
+
+  if (!saved) {
+    statusMessage = "No save found.";
+    renderStartScreen();
+    return;
+  }
+
+  state = saved;
+  statusMessage = "Loaded.";
+  render();
+}
+
+function startNewGame() {
+  state = createInitialState();
+  statusMessage = "";
+  render();
 }
 
 function resetGame() {
   localStorage.removeItem(storageKey());
   state = createInitialState();
+  statusMessage = "Restarted.";
   render();
 }
 
 function render() {
-  saveGame();
+  autoSaveGame();
 
   const passage = story.passages[state.scene];
 
@@ -161,6 +235,26 @@ function renderHeader() {
     <h1 class="book-title">${escapeHtml(story.title || "Untitled Story")}</h1>
     <p class="book-meta">${escapeHtml(story.description || "")}${author}</p>
   `;
+}
+
+function renderStartScreen() {
+  const saved = loadSave();
+  const loadDisabled = saved ? "" : "disabled";
+  const loadLabel = saved ? "Load Save" : "No Save Found";
+
+  app.innerHTML = `
+    ${renderHeader()}
+    ${renderDebugPanel()}
+    <section class="front-page">
+      <button class="primary-button" id="start-button" type="button">Start</button>
+      <button class="secondary-button" id="load-button" type="button" ${loadDisabled}>${loadLabel}</button>
+    </section>
+  `;
+
+  bindThemeButton();
+
+  document.getElementById("start-button").addEventListener("click", startNewGame);
+  document.getElementById("load-button").addEventListener("click", loadGame);
 }
 
 function renderDebugPanel() {
@@ -284,8 +378,8 @@ function renderPassage(passage) {
 
 function renderStatus() {
   const ui = story.ui || {};
-  const showStats = ui.show_stats !== false;
-  const showInventory = ui.show_inventory !== false;
+  const showStats = ui.show_stats === true;
+  const showInventory = ui.show_inventory === true;
 
   const stats = Object.entries(state.stats || {});
   const inventory = state.inventory || [];
@@ -310,14 +404,20 @@ function renderStatus() {
     html += `</section>`;
   }
 
+  if (statusMessage) {
+    html += `<p class="status-message" role="status">${escapeHtml(statusMessage)}</p>`;
+  }
+
   html += `</aside>`;
   return html;
 }
 
-function renderToolbar(showBack) {
+function renderToolbar(showBack = false) {
+  const canShowBack = showBack && story.ui?.show_back === true;
+
   return `
     <nav class="toolbar">
-      ${showBack ? `<button class="secondary-button" id="back-button" type="button">Back</button>` : ""}
+      ${canShowBack ? `<button class="secondary-button" id="back-button" type="button">Back</button>` : ""}
       <button class="secondary-button" id="reset-button" type="button">Restart</button>
     </nav>
   `;
@@ -370,6 +470,10 @@ function requirementsMet(requires) {
 
 function requirementMet(req) {
   if (!req) return true;
+
+  if (req.all) return req.all.every(requirementMet);
+
+  if (req.any) return req.any.some(requirementMet);
 
   if (req.item) return state.inventory.includes(req.item);
 
@@ -449,29 +553,75 @@ function getValue(path) {
 }
 
 function markdownish(text) {
-  const escaped = escapeHtml(text);
-
-  return escaped
+  return String(text)
     .split(/\n{2,}/)
     .map(block => {
       const trimmed = block.trim();
       if (!trimmed) return "";
 
       if (trimmed.startsWith("# ")) {
-        return `<h1>${inlineMarkdown(trimmed.slice(2))}</h1>`;
+        return `<h1>${inlineText(trimmed.slice(2), 0)}</h1>`;
       }
 
       if (trimmed.startsWith("## ")) {
-        return `<h2>${inlineMarkdown(trimmed.slice(3))}</h2>`;
+        return `<h2>${inlineText(trimmed.slice(3), 0)}</h2>`;
       }
 
-      return `<p>${inlineMarkdown(trimmed).replace(/\n/g, "<br>")}</p>`;
+      return `<p>${inlineText(trimmed, 0).replace(/\n/g, "<br>")}</p>`;
     })
     .join("");
 }
 
-function inlineMarkdown(text) {
-  return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+function inlineText(text, depth = 0) {
+  return renderContextRefs(text, depth).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
+function renderContextRefs(text, depth) {
+  if (!story?.context || depth > 4) return escapeHtml(text);
+
+  const parts = [];
+  const pattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text))) {
+    parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+
+    const display = match[1].trim();
+    const key = (match[2] || match[1]).trim();
+    const entry = resolveContextEntry(key);
+
+    if (!entry) {
+      parts.push(escapeHtml(display));
+    } else {
+      const label = entry.label || display;
+      const body = entry.text || "";
+      parts.push(`<span class="context-term" tabindex="0">${escapeHtml(display)}<span class="context-box" role="tooltip"><strong>${escapeHtml(label)}</strong><span>${inlineText(body, depth + 1)}</span></span></span>`);
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  parts.push(escapeHtml(text.slice(lastIndex)));
+  return parts.join("");
+}
+
+function resolveContextEntry(key) {
+  const context = story?.context || {};
+  if (context[key]) return context[key];
+
+  const normalized = normalizeContextKey(key);
+  if (context[normalized]) return context[normalized];
+
+  return Object.values(context).find(entry => normalizeContextKey(entry?.label || "") === normalized);
+}
+
+function normalizeContextKey(key) {
+  return String(key)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function validateStory(story) {
@@ -482,7 +632,7 @@ function validateStory(story) {
     return { errors: ["Story YAML must be an object."], warnings };
   }
 
-  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "start", "character", "stats", "inventory", "flags", "passages", "debug"]);
+  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "start", "character", "context", "stats", "inventory", "flags", "passages", "debug"]);
   warnUnknownFields(story, topFields, "top level", warnings);
 
   if (!story.title) warnings.push("Missing top-level title.");

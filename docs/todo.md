@@ -1,292 +1,73 @@
-## TODO: Context-Based Hover Glossary
+# Loom Todo
 
-Add a context-based hover glossary system for story text.
+This list only tracks work that still needs a decision or implementation. Completed items were removed or moved to `docs/devlog.md`.
 
-Authors should be able to mark words or phrases in `story.yaml` so the engine highlights them in rendered story text. When the player hovers over a highlighted term, a small context box appears with a definition, explanation, or story-specific note.
+# Stretch
+## Context Glossary Follow-Ups
 
-This should keep Loom simple while allowing richer interactive fiction features like lore, character knowledge, changing relationships, discovered clues, and nested explanations.
+Basic context notes are implemented with:
 
-### Goals
+- `[[term]]`
+- `[[display text|context_id]]`
+- top-level `context`
+- hover/focus glossary boxes
+- starter story examples
 
-* Allow authors to define hoverable terms in `story.yaml`
-* Highlight marked words or phrases in rendered passage text
-* Show a small context box on hover/focus
-* Allow CSS customization for:
+Remaining possible work:
 
-  * highlighted word color
-  * underline/background treatment
-  * context box styling
-  * context box animation/timing
-* Include at least one glossary example in the starter story
-* Update the README with author-facing documentation
+- Dynamic context states, for example `effects.context.jack: married`
+- More polished nested tooltip behavior
+- Hover open/close delays
+- Mobile/touch behavior
+- Accessibility polish beyond basic focus support
 
-### Proposed Author Syntax
+Keep this scoped carefully. Basic glossary notes are useful; a complex tooltip engine is probably not worth it yet.
 
-Use double square brackets for glossary/context references:
+## front page image for the cover image.
+Also a feature for a credits page
 
-```yaml
-text: |
-  You see [[Jack]] standing beside the old gate.
-```
+## Hot Reload
 
-Support custom display text with an explicit context ID:
+Consider a preview-only hot reload helper, but only if it stays simple.
 
-```yaml
-text: |
-  You see [[your old friend|jack]] standing beside the old gate.
-```
+Risk: automatic reload can be annoying when an author is deep in a story path. A better version may reload assets only, or ask before restarting story state.
 
-In this example:
+## Theme Packs
 
-* `your old friend` is the rendered text
-* `jack` is the glossary/context ID
+Theme variables are implemented in `src/style.css`.
 
-### Proposed `story.yaml` Structure
+Possible future work:
 
-Add a top-level context/glossary table:
+- Add a `themes/` directory containing small CSS variable override files
+- Keep the main layout in one stylesheet
+- Avoid duplicated full stylesheets that must be updated in parallel
 
-```yaml
-context:
-  jack:
-    label: "Jack"
-    text: "Your best friend since childhood."
+This should wait until the base style settles.
 
-  old_gate:
-    label: "Old Gate"
-    text: "A rusted iron gate at the edge of town."
-```
 
-The engine should resolve:
 
-```yaml
-[[Jack]]
-```
+## Example Stories
 
-by matching a glossary label or ID.
+Add a small `examples/` set when there are enough stable patterns to demonstrate.
 
-The engine should resolve:
+Possible examples:
 
-```yaml
-[[your old friend|jack]]
-```
+- Minimal story
+- Character-creation story
+- Inventory puzzle
+- Stats/checks story
+- Mystery with context glossary notes
 
-by using `your old friend` as display text and `jack` as the context lookup key.
+The examples should be starting points, not a second documentation system.
 
-### Dynamic Context / Story Knowledge
+## Images
 
-Support definitions that can change based on story state.
+Consider a simple way to include images in passage text or passage metadata.
 
-This should probably be modeled as character/story knowledge, not repeated inline definitions.
+Keep this static-file friendly. No asset pipeline unless there is a very strong reason.
 
-Example:
+## Library Option
 
-```yaml
-context:
-  jack:
-    label: "Jack"
-    text: "Your best friend since childhood."
-    states:
-      married:
-        text: "Your partner. Somehow, after everything, Jack stayed."
-      betrayed:
-        text: "Your former best friend. You are no longer sure what Jack wants."
-```
+Maybe add a front page that lists multiple stories from a folder and lets the player choose one.
 
-Story choices could update the active context state:
-
-```yaml
-effects:
-  context:
-    jack: married
-```
-
-This lets authors update Jack once, instead of manually redefining Jack every time the name appears.
-
-### Nested Context Boxes
-
-Support “context-in-context” behavior inspired by Paradox-style nested tooltips.
-
-If a glossary definition contains another glossary term, that term should also be hoverable inside the context box.
-
-Example:
-
-```yaml
-context:
-  jack:
-    label: "Jack"
-    text: "Your best friend. He grew up near the [[Old Gate|old_gate]]."
-```
-
-Hovering `Jack` opens a context box. Inside that box, hovering `Old Gate` opens another context box.
-
-This probably requires:
-
-* delayed hover opening
-* delayed hover closing
-* mouse tracking between parent and child context boxes
-* a grace period so the box does not instantly disappear
-* optional visual timer/indicator before closing
-* keyboard/focus support for accessibility
-
-### Implementation Notes
-
-Likely files to update:
-
-* `loom.js`
-
-  * parse glossary markup in passage text
-  * render hoverable context spans
-  * resolve context IDs from `story.yaml`
-  * support dynamic context state
-  * support nested context rendering
-  * avoid unsafe raw HTML injection
-
-* `style.css`
-
-  * add styling for highlighted glossary terms
-  * add styling for hover context boxes
-  * add positioning, transitions, and optional close-delay indicator
-
-* `story.yaml`
-
-  * add small example glossary table
-  * add at least one passage using `[[term]]`
-  * add at least one passage using `[[display text|context_id]]`
-  * add at least one choice that changes a context definition
-
-* `README.md`
-
-  * document glossary syntax
-  * document context table format
-  * document dynamic context updates
-  * document how to customize highlight/context box colors in CSS
-
-### MVP Scope
-
-Implement first:
-
-* Static glossary definitions
-* `[[term]]` syntax
-* `[[display text|context_id]]` syntax
-* Basic hover/focus context box
-* CSS styling
-* README docs
-* Starter story example
-
-### Later Scope
-
-Add after MVP:
-
-* Dynamic glossary state changes
-* Nested context boxes
-* Tooltip hover delay / close delay
-* Visual close timer
-* Better mobile/touch support
-* Accessibility polish
-
-### Acceptance Criteria
-
-* A story passage can include `[[Jack]]` and render `Jack` as highlighted text
-* Hovering or focusing the highlighted word displays Jack’s definition
-* A story passage can include `[[your old friend|jack]]` and resolve to the `jack` context entry
-* Glossary definitions are defined centrally in `story.yaml`
-* The starter story includes a simple example
-* README explains how authors use the feature
-* README explains how to change the highlight/context box styling in CSS
-* The implementation keeps Loom small, readable, and hackable
-
-
-## Better validation errors
-
-Before adding big features, make bad YAML less painful.
-
-Example errors:
-
-Passage "cellar" has a choice pointing to missing passage "basement".
-Choice "Open the door" requires item "old_key", but old_key is not listed in inventory.
-
-This is huge for making Loom friendly.
-
-## Writing doc + syntax reference
-
-One clear doc in docs/ with:
-
-How to start
-How passages work
-How choices work
-How stats work
-How flags work
-How inventory works
-How endings work
-
-Keep it practical. No big docs system yet. Link this from the readme.
-Have a more formal syntax reference there too. Causal tutorial and then syntax reference. 
-
-
-## Save / load state
-
-Add browser local storage.
-
-Tiny UI:
-
-Save
-Load
-Restart
-
-For choice games, this is a very “real engine” feature without making the engine conceptually bigger.
-
-
-
-## Condition syntax cleanup
-
-Make sure requirements are readable and consistent.
-
-Something like:
-
-requires:
-  item: old_key
-requires:
-  stat: nerve
-  gte: 2
-requires:
-  all:
-    - item: lantern
-    - flag: found_map
-
-This is core engine ergonomics.
-
-## Effects syntax cleanup
-
-Make sure requirements are readable and consistent for changing state.
-
-effects:
-  stats:
-    nerve: 1
-    suspicion: -1
-  flags:
-    opened_cellar: true
-  add_items:
-    - old_key
-  remove_items:
-    - broken_key
-
-Before adding more features, make this beautiful.
-
-## Theme variables in CSS
-
-Add a small set of CSS variables:
-
-:root {
-  --loom-bg: #111;
-  --loom-text: #eee;
-  --loom-link: #d6a657;
-  --loom-choice-bg: #222;
-  --loom-choice-border: #555;
-  --loom-context-highlight: #ffd27d;
-}
-
-This lets people reskin the engine without touching layout code.
-
-## Dir of styles
-Should have a style directory that gets built with different theme options.
-It may be a good point to have some way to update all of these when the main style gets updated, maybe we can have these be overrides to the main style? Consider the best options for this. I dont want a situation where changes require updating many files if we do it that way. However if we have the theme variables in the main CSS, we can just have a nice directory of just the variables, but the updating will be a pain still... hmm. 
+This is future work. It should not complicate the default one-folder, one-story workflow.

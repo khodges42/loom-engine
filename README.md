@@ -1,5 +1,3 @@
-Yeah, fair. Here’s the corrected README draft based on the actual shape: **copy `src/`, edit `story.yaml`, keep it tiny.**
-
 # Loom
 
 > Weave interactive stories.
@@ -8,9 +6,9 @@ Loom is a tiny, hackable engine for choice-based games, interactive fiction, bra
 
 It is meant to stay simple.
 
-Just 4-ish files, one story file, and a web browser.
+Four-ish files, one story file, and a web browser.
 
-## What is Loom?
+## What Is Loom?
 
 Loom is a static-site adventure game engine.
 
@@ -24,7 +22,15 @@ That is the core idea.
 
 ## Getting Started
 
-Copy the files from `src/` into a new folder:
+Copy the four files from `src/` into a new folder:
+
+```text
+my-story/
+|-- index.html
+|-- style.css
+|-- engine.js
+`-- story.yaml
+```
 
 Then edit:
 
@@ -34,10 +40,9 @@ story.yaml
 
 That is your game.
 
-To preview it locally, you should just be able to click `index.html` and open in your browser. 
+Open `index.html` in a browser to preview. If your browser blocks local YAML loading, Loom shows a file picker and a short explanation instead of a blank page.
 
-If that gives you trouble for some reason, you may want to launch a simple file server with python:
-
+You can also run a tiny local server:
 
 ```bash
 python3 -m http.server 8000
@@ -49,33 +54,27 @@ Then open:
 http://localhost:8000
 ```
 
+On Windows PowerShell, from the project folder:
+
+```powershell
+python -m http.server 8000
+```
+
+This repo also includes convenience wrappers, `serve.sh` and `serve.ps1`, that serve the bundled `src/` folder.
 
 ## The Files
 
 A Loom project is intentionally small.
 
-```text
-my-story/
-├── index.html
-├── style.css
-├── loom.js
-└── story.yaml
-```
-
-The exact file names may change over time, but the philosophy should not.
-
 ### `story.yaml`
 
 This is the file you edit.
 
-Your scenes, choices, text, conditions, flags, stats, inventory, and story structure live here.
+Your passages, choices, text, conditions, flags, stats, inventory, endings, character fields, and glossary notes live here.
 
 Most authors should spend almost all of their time in `story.yaml`.
 
 The default `story.yaml` is intentionally small. It is not meant to be an impressive game; it is meant to be the easiest possible file to edit first.
-
-For a larger example, see `examples/werewolves-vs-vamps.story.yaml`.
-
 
 ### `index.html`
 
@@ -89,11 +88,13 @@ The look and feel.
 
 Change this if you want your game to look like a paperback novel, a terminal, a visual novel, a haunted website, a zine, or whatever else.
 
-### `loom.js`
+Loom exposes CSS variables such as `--loom-bg`, `--loom-text`, `--loom-accent`, and `--loom-context-highlight` so you can reskin the game without digging through layout code.
+
+### `engine.js`
 
 The engine.
 
-This handles loading the story, rendering scenes, showing choices, tracking state, and moving the player through the story.
+This handles loading the story, validating it, rendering passages, showing choices, tracking state, autosaving, and resolving glossary notes.
 
 It is meant to be readable.
 
@@ -109,7 +110,7 @@ A very small story might look something like this:
 title: Example Story
 start: start
 
-scenes:
+passages:
   start:
     text: |
       You wake up in a room with two doors.
@@ -125,36 +126,61 @@ scenes:
     text: |
       The red door opens into a warm hallway.
 
-    choices:
-      - text: Go back.
-        goto: start
-
   blue_door:
     text: |
       The blue door opens into darkness.
-
-    choices:
-      - text: Step inside.
-        goto: darkness
-
-  darkness:
-    text: |
-      Something in the dark remembers you.
 ```
 
-At its simplest, a Loom story is just:
+At its simplest, a Loom story is:
 
 ```text
-scene → choices → scene
+passage -> choices -> passage
 ```
 
 Everything else grows from that.
+
+For the practical author guide and syntax reference, see [docs/writing.md](docs/writing.md).
+
+## Built-In Features
+
+- Passages and choices
+- Character creation fields
+- Optional stats, flags, and inventory
+- Readable `requires` conditions
+- Readable `effects`
+- Endings
+- Autosave by default, with Load Save on the front page when a save exists
+- YAML validation with clear missing-passage and unknown-reference messages
+- Context glossary notes with `[[term]]` and `[[display text|context_id]]`
+- Theme variables in `style.css`
+- Friendly local-file fallback when `story.yaml` cannot be fetched
+
+## Context Notes
+
+Define glossary entries once:
+
+```yaml
+context:
+  old_key:
+    label: "Old Key"
+    text: "A little iron key with a paper tag."
+```
+
+Use them in passage text:
+
+```yaml
+text: |
+  Beneath the mail, you find an [[Old Key]].
+  The [[thing in your hand|old_key]] feels warm.
+```
+
+The highlighted text can be hovered or focused to show the note. Glossary text can include another glossary reference, but deeper tooltip behavior is intentionally basic for now.
 
 ## Philosophy
 
 Loom is built around a few stubborn ideas.
 
-### Simple files beat complex systems
+### Simple Files Beat Complex Systems
 
 A story should not need a backend, account system, asset pipeline, database, or build maze just to exist.
 
@@ -168,7 +194,7 @@ open browser
 
 That is the whole thing.
 
-### The engine should be understandable
+### The Engine Should Be Understandable
 
 Loom is not trying to hide everything behind magic.
 
@@ -176,17 +202,17 @@ The code should be small enough that a curious person can open it, read it, chan
 
 That is the point.
 
-### Expansion should come from hacking
+### Expansion Should Come From Hacking
 
 Loom should be expandable, but not bloated.
 
-Stats, inventory, flags, conditions, character creation, custom UI, themes, saves, and validation can all exist without turning the engine into a giant framework.
+Stats, inventory, flags, conditions, character creation, custom UI, themes, saves, validation, glossary notes, and story-specific hacks can all exist without turning the engine into a giant framework.
 
 The goal is not to include every feature.
 
 The goal is to make the core simple enough that new features are easy to add.
 
-### Stories are woven
+### Stories Are Woven
 
 Most choice games are described as branching trees.
 
@@ -208,12 +234,12 @@ Loom games are static websites.
 
 You can host them almost anywhere:
 
-* GitHub Pages
-* Cloudflare Pages
-* Netlify
-* Neocities
-* S3
-* Any plain web server
+- GitHub Pages
+- Cloudflare Pages
+- Netlify
+- Neocities
+- S3
+- Any plain web server
 
 Upload the files and serve the folder.
 
@@ -229,7 +255,7 @@ You are free to use it, study it, modify it, and share it. If you distribute mod
 
 I believe we need more of this for creative communities.
 
-Interactive fiction, zines, small games, fan works, personal tools, and experimental art all thrive when people can learn from each other, remix each other’s tools, and build on shared infrastructure without that infrastructure disappearing into a private fork.
+Interactive fiction, zines, small games, fan works, personal tools, and experimental art all thrive when people can learn from each other, remix each other's tools, and build on shared infrastructure without that infrastructure disappearing into a private fork.
 
 GPLv3 helps keep the engine part of the commons.
 
@@ -239,17 +265,16 @@ It does not mean every story written with Loom needs to be GPL. Your writing, ar
 
 Loom should remain:
 
-* Small
-* Free
-* Hackable
-* Static-first
-* Easy to copy
-* Easy to understand
-* Easy to modify
-* Friendly to non-engineers
-* Useful for weird experiments
+- Small
+- Free
+- Hackable
+- Static-first
+- Easy to copy
+- Easy to understand
+- Easy to modify
+- Friendly to non-engineers
+- Useful for weird experiments
 
 When in doubt, choose the simpler version.
 
 When a feature makes Loom harder to understand, it should have to justify itself.
-

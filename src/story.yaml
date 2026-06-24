@@ -1,316 +1,284 @@
 # Loom starter story.
-
+#
 # Copy this file, rename things, and start replacing text.
 
 title: "The Tiny Door"
 slug: "the-tiny-door"
 author: "You"
 version: 2
-
-description: "A tiny Loom example that shows character creation, stats, items, flags, conditions, choices, and endings."
+description: "A tiny Loom example that shows character creation, stats, items, flags, conditions, choices, endings, and context notes."
 
 ui:
-show_stats: true
-show_inventory: true
-show_history: true
+  auto_save: true
 
 debug:
-validate: true
-show_warnings: true
-
-# The first passage to show.
+  validate: true
+  show_warnings: true
 
 start: character
 
-# Character creator fields.
-
-# These values can be used in story text like {{name}}.
-
 character:
-fields:
-name:
-type: text
-label: "Name"
-default: "Alex"
+  fields:
+    name:
+      type: text
+      label: "Name"
+      default: "Alex"
+    pronouns:
+      type: choice
+      label: "Pronouns"
+      default: "they/them"
+      options:
+        - "they/them"
+        - "she/her"
+        - "he/him"
+    first_instinct:
+      type: choice
+      label: "First instinct"
+      default: "look for clues"
+      options:
+        - "look for clues"
+        - "stay calm"
+        - "leave quickly"
 
-```
-pronouns:
-  type: choice
-  label: "Pronouns"
-  default: "they/them"
-  options:
-    - "they/them"
-    - "she/her"
-    - "he/him"
-
-approach:
-  type: choice
-  label: "Approach"
-  default: "careful"
-  options:
-    - "careful"
-    - "bold"
-    - "weird"
-```
-
-# Stats are numbers the story can change and check.
+context:
+  tiny_door:
+    label: "Tiny Door"
+    text: "A painted door under the stairs. It is too small for a person, but the house treats it like an entrance."
+  old_key:
+    label: "Old Key"
+    text: "A little iron key with a paper tag that says: NOT FOR THE FRONT DOOR."
 
 stats:
-nerve: 0
-wit: 0
-wonder: 0
-suspicion: 0
-
-# Item IDs used by this story.
+  nerve: 0
+  wit: 0
+  wonder: 0
+  suspicion: 0
 
 inventory:
-
-* lantern
-* old_key
-* map_scrap
-
-# Flags are true/false story memory.
+  - lantern
+  - old_key
+  - map_scrap
 
 flags:
-took_lantern: false
-found_key: false
-found_map: false
-opened_cellar: false
+  took_lantern: false
+  found_key: false
+  found_map: false
+  opened_cellar: false
 
 passages:
-character:
-type: character
-title: "Who Opens the Door?"
-text: |
-Before the story starts, choose who is walking into it.
-goto: foyer
+  character:
+    type: character
+    title: "Who Opens the Door?"
+    text: |
+      Before the story starts, choose who is walking into it.
+    goto: foyer
 
-foyer:
-type: story
-title: "The Foyer"
-text: |
-{{name}} stands in the foyer of a house that should be empty.
+  foyer:
+    type: story
+    title: "The Foyer"
+    text: |
+      {{name}} stands in the foyer of an old house that should be empty.
 
-```
-  Rain taps against the windows. A tiny door waits beneath the stairs.
-  It is too small for a person and too carefully painted to be a cupboard.
+      Rain taps against the windows. A [[tiny door|tiny_door]] waits beneath the stairs.
+      It is too small for a person, but it has a brass handle and a keyhole.
 
-  Your approach is {{approach}}. The house seems to notice.
-choices:
-  - text: "Take the lantern from the wall."
-    goto: foyer_after_lantern
-    effects:
-      add_items:
-        - lantern
-      flags:
-        took_lantern: true
-      stats:
-        wonder: 1
+      Your first instinct is to {{first_instinct}}.
+    choices:
+      - text: "Take the lantern from the wall."
+        goto: foyer_after_lantern
+        effects:
+          add_items:
+            - lantern
+          flags:
+            took_lantern: true
+          stats:
+            wonder: 1
 
-  - text: "Search the little table by the stairs."
-    goto: foyer_after_key
-    effects:
-      add_items:
-        - old_key
-      flags:
-        found_key: true
-      stats:
-        wit: 1
+      - text: "Search the little table by the stairs."
+        goto: foyer_after_key
+        effects:
+          add_items:
+            - old_key
+          flags:
+            found_key: true
+          stats:
+            wit: 1
 
-  - text: "Call into the tiny door before opening it."
-    goto: foyer_after_call
-    effects:
-      stats:
-        nerve: 1
-        suspicion: 1
-```
+      - text: "Yell into the tiny door before opening it."
+        goto: foyer_after_call
+        effects:
+          stats:
+            nerve: 1
+            suspicion: 1
 
-foyer_after_lantern:
-type: story
-title: "A Useful Light"
-text: |
-The lantern is warm, though no flame burns inside it.
+  foyer_after_lantern:
+    type: story
+    title: "A Useful Light"
+    text: |
+      The lantern is warm, though the glass is dark.
 
-```
-  When you lift it, the tiny door clicks once.
-choices:
-  - text: "Open the tiny door."
-    goto: cellar
+      When you lift it, the [[tiny door|tiny_door]] clicks once.
+    choices:
+      - text: "Open the tiny door."
+        goto: cellar
 
-  - text: "Search the table too."
-    goto: foyer_after_key
-    effects:
-      add_items:
-        - old_key
-      flags:
-        found_key: true
-      stats:
-        wit: 1
-```
+      - text: "Search the table too."
+        goto: foyer_after_key
+        effects:
+          add_items:
+            - old_key
+          flags:
+            found_key: true
+          stats:
+            wit: 1
 
-foyer_after_key:
-type: story
-title: "The Old Key"
-text: |
-Beneath a stack of mail, you find a little iron key.
+  foyer_after_key:
+    type: story
+    title: "The Old Key"
+    text: |
+      Beneath a stack of mail, you find an [[Old Key]].
 
-```
-  A paper tag tied to it says: NOT FOR THE FRONT DOOR.
-choices:
-  - text: "Open the tiny door."
-    goto: cellar
+      A paper tag tied to it says: NOT FOR THE FRONT DOOR.
+    choices:
+      - text: "Open the tiny door."
+        goto: cellar
 
-  - text: "Take a breath first."
-    goto: foyer_after_call
-    effects:
-      stats:
-        nerve: 1
-        suspicion: -1
-```
+      - text: "Take a breath first."
+        goto: foyer_after_call
+        effects:
+          stats:
+            nerve: 1
+            suspicion: -1
 
-foyer_after_call:
-type: story
-title: "Something Answers"
-text: |
-You call into the tiny door.
+  foyer_after_call:
+    type: story
+    title: "Something Answers"
+    text: |
+      You yell into the [[tiny door|tiny_door]].
 
-```
-  Something under the stairs knocks back.
+      Something under the stairs knocks back.
 
-  Once.
-  Twice.
-  Then from much farther away, a third time.
-choices:
-  - text: "Open the tiny door."
-    goto: cellar
-```
+      Once.
+      Twice.
+      Then from much farther away, a third time.
+    choices:
+      - text: "Open the tiny door."
+        goto: cellar
 
-cellar:
-type: story
-title: "The Room Under the Stairs"
-text: |
-The tiny door opens into a room larger than the house.
+  cellar:
+    type: story
+    title: "The Room Under the Stairs"
+    text: |
+      The tiny door opens into a storage room that is much larger than it should be.
 
-```
-  A locked cabinet leans against one wall. A tunnel slopes into the dark.
-  Somewhere below, water is running uphill.
-choices:
-  - text: "Unlock the cabinet with the old key."
-    goto: cabinet
-    requires:
-      item: old_key
+      A locked cabinet leans against one wall. A narrow tunnel slopes into the dark.
+      Somewhere below, water runs over stone.
+    choices:
+      - text: "Unlock the cabinet with the old key."
+        goto: cabinet
+        requires:
+          item: old_key
 
-  - text: "Follow the lantern glow into the tunnel."
-    goto: tunnel
-    requires:
-      item: lantern
-    effects:
-      stats:
-        wonder: 1
-      flags:
-        opened_cellar: true
+      - text: "Follow the lantern glow into the tunnel."
+        goto: tunnel
+        requires:
+          item: lantern
+        effects:
+          stats:
+            wonder: 1
+          flags:
+            opened_cellar: true
 
-  - text: "Force yourself into the dark tunnel."
-    goto: tunnel
-    requires:
-      stat: nerve
-      gte: 1
-    effects:
-      stats:
-        nerve: 1
-        suspicion: 1
-      flags:
-        opened_cellar: true
+      - text: "Force yourself into the dark tunnel."
+        goto: tunnel
+        requires:
+          stat: nerve
+          gte: 1
+        effects:
+          stats:
+            nerve: 1
+            suspicion: 1
+          flags:
+            opened_cellar: true
 
-  - text: "Nope. Leave the house."
-    goto: leave_ending
-```
+      - text: "Leave the house."
+        goto: leave_ending
 
-cabinet:
-type: story
-title: "The Cabinet"
-text: |
-The old key turns.
+  cabinet:
+    type: story
+    title: "The Cabinet"
+    text: |
+      The old key turns.
 
-```
-  Inside the cabinet is a scrap of map showing the tunnel below the house.
-  Someone has drawn a star at the end and written:
+      Inside the cabinet is a scrap of map showing the tunnel below the house.
+      Someone has drawn a star at the end and written:
 
-  BRING LIGHT.
-choices:
-  - text: "Take the map scrap and enter the tunnel."
-    goto: tunnel
-    effects:
-      add_items:
-        - map_scrap
-      flags:
-        found_map: true
-        opened_cellar: true
-      stats:
-        wonder: 1
+      BRING LIGHT.
+    choices:
+      - text: "Take the map scrap and enter the tunnel."
+        goto: tunnel
+        effects:
+          add_items:
+            - map_scrap
+          flags:
+            found_map: true
+            opened_cellar: true
+          stats:
+            wonder: 1
 
-  - text: "Put it back and leave."
-    goto: leave_ending
-```
+      - text: "Put it back and leave."
+        goto: leave_ending
 
-tunnel:
-type: story
-title: "The Tunnel"
-text: |
-The tunnel smells like wet stone and old paint.
+  tunnel:
+    type: story
+    title: "The Tunnel"
+    text: |
+      The tunnel smells like wet stone and old paint.
 
-```
-  The farther you walk, the more the house above you feels like a rumor.
-choices:
-  - text: "Use the map and lantern to find the hidden door."
-    goto: secret_ending
-    requires:
-      all:
-        - item: map_scrap
-        - item: lantern
+      The farther you walk, the quieter the house above you becomes.
+    choices:
+      - text: "Use the map and lantern to find the hidden door."
+        goto: secret_ending
+        requires:
+          all:
+            - item: map_scrap
+            - item: lantern
 
-  - text: "Trust the strange feeling and keep walking."
-    goto: wonder_ending
-    requires:
-      stat: wonder
-      gte: 1
+      - text: "Trust your instincts and keep walking."
+        goto: wonder_ending
+        requires:
+          stat: wonder
+          gte: 1
 
-  - text: "Turn around before the tunnel notices you."
-    goto: leave_ending
-```
+      - text: "Turn around."
+        goto: leave_ending
 
-leave_ending:
-type: ending
-title: "Ending: Safe Enough"
-text: |
-You leave the house and stand in the rain.
+  leave_ending:
+    type: ending
+    title: "Ending: Safe Enough"
+    text: |
+      You leave the house and stand in the rain.
 
-```
-  Behind you, the tiny door closes by itself.
+      Behind you, the tiny door closes by itself.
 
-  That is probably fine.
-```
+      For now, that is enough.
 
-wonder_ending:
-type: ending
-title: "Ending: The House Opens"
-text: |
-You follow the impossible tunnel until it becomes a road beneath a violet sky.
+  wonder_ending:
+    type: ending
+    title: "Ending: The House Opens"
+    text: |
+      You follow the impossible tunnel until it becomes a road beneath a violet sky.
 
-```
-  The house was not haunted.
+      The house was not haunted.
 
-  It was waiting.
-```
+      It was waiting.
 
-secret_ending:
-type: ending
-title: "Secret Ending: Bring Light"
-text: |
-With the map in one hand and the lantern in the other, you find the hidden door.
+  secret_ending:
+    type: ending
+    title: "Secret Ending: Bring Light"
+    text: |
+      With the map in one hand and the lantern in the other, you find the hidden door.
 
-```
-  Behind it is a room full of tiny suns in glass jars.
+      Behind it is a room full of tiny suns in glass jars.
 
-  One of them has your name on it.
-```
+      One of them has your name on it.
