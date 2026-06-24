@@ -175,6 +175,11 @@ body {
   color: var(--loom-muted);
 }
 
+.text-gray,
+.text-grey {
+  color: var(--loom-muted);
+}
+
 body[data-theme="dark"] .text-red {
   color: #e38b8b;
 }

@@ -743,7 +743,7 @@ function markdownish(text) {
 }
 
 function dialogueParts(block) {
-  const match = block.match(/^([A-Z][A-Za-z0-9 ._'-]{0,40}):\s+([\s\S]+)/);
+  const match = block.match(/^((?:\[[a-z]+\|[^\]]+\])|[A-Z][A-Za-z0-9 ._'-]{0,40}):\s+([\s\S]+)/);
   if (!match) return null;
 
   return {
@@ -768,7 +768,7 @@ function renderInlineFormatting(html) {
 }
 
 function textColor(color) {
-  const colors = new Set(["red", "blue", "green", "gold", "muted"]);
+  const colors = new Set(["red", "blue", "green", "gold", "muted", "gray", "grey"]);
   return colors.has(color) ? color : "";
 }
 

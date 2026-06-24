@@ -163,7 +163,7 @@ text: |
   The warning is [red|not subtle].
 ```
 
-The built-in color names are `red`, `blue`, `green`, `gold`, and `muted`.
+The built-in color names are `red`, `blue`, `green`, `gold`, `muted`, `gray`, and `grey`.
 
 ## Built-In Features
 

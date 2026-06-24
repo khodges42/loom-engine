@@ -1,6 +1,8 @@
 # Loom Todo
 
 This list only tracks work that still needs a decision or implementation. Completed items were removed or moved to `docs/devlog.md`.
+# todo
+## when a context window is on a bolded word the whole context seems to be bolded, could be inaccurate but thats my test shows that
 # Stretch
 ## Context Glossary Follow-Ups
 

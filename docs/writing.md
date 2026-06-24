@@ -46,7 +46,7 @@ text: |
   This is [red|colored text].
 ```
 
-Available text colors are `red`, `blue`, `green`, `gold`, and `muted`.
+Available text colors are `red`, `blue`, `green`, `gold`, `muted`, `gray`, and `grey`.
 
 For an indented block, start each line with `>`:
 
