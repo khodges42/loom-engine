@@ -32,6 +32,25 @@ passages:
 
 `type` is optional for normal story passages. Use `type: ending` for endings and `type: character` for character creation.
 
+## Covers
+
+The front page renders like a simple book cover. By default, it uses the story `title`, `description`, and `author`.
+
+Use `cover` to override the front-page subtitle or add a cover image:
+
+```yaml
+title: "The Tiny Door"
+author: "You"
+description: "A short story under the stairs."
+
+cover:
+  subtitle: "A short story under the stairs"
+  image: telly
+  image_size: medium
+```
+
+`cover.image` references an image alias from top-level `images`.
+
 ## Text Formatting
 
 Plain paragraphs are written as normal text. Leave a blank line between paragraphs.
@@ -67,6 +86,39 @@ text: |
 
 Loom renders the speaker name as a highlighted label and indents the spoken line. This is intentionally simple; it is just text formatting, not a character system.
 
+## Images
+
+Store image files in an `images/` folder and define aliases at the top level.
+
+```yaml
+images:
+  telly:
+    label: "Telly, the cat"
+    alt: "A sphynx cat looking proud and regal."
+    location: "images/telly.PNG"
+    size: medium
+```
+
+In passage text, place an image on its own paragraph:
+
+```yaml
+text: |
+  The room is larger than it should be.
+
+  ![[telly]]
+```
+
+Override the alias size for a single placement with a pipe:
+
+```yaml
+text: |
+  ![[telly|small]]
+```
+
+Supported image sizes are `small`, `medium`, `large`, and `full`. Images are always constrained to the page width and viewport height.
+
+Image paths are relative to `index.html`. If your copied Loom project has `index.html`, `story.yaml`, and `images/` in the same folder, use paths like `images/telly.PNG`.
+
 ## Chapters
 
 Most stories should stay in one `story.yaml` file. For longer stories, Loom can also load extra chapter files.
@@ -91,7 +143,7 @@ passages:
 
 Choices can `goto` passages from the main file or any loaded chapter. State is still global, so stats, flags, inventory, and endings can work across chapter files.
 
-Chapter files may also add top-level `context`, `stats`, `flags`, and `inventory`. Duplicate passage IDs are errors.
+Chapter files may also add top-level `context`, `images`, `stats`, `flags`, and `inventory`. Duplicate passage IDs are errors.
 
 Chapter loading needs a local server or hosted site. It will not work from the manual file picker fallback because browsers do not allow Loom to automatically read nearby files from disk.
 
@@ -286,6 +338,24 @@ text: |
 
 The text before the pipe is displayed. The text after the pipe is the context ID.
 
+## Credits
+
+Add a top-level `credits` section to show a Credits button on the front page.
+
+```yaml
+credits:
+  title: "Credits"
+  text: |
+    Made for a small interactive story.
+  entries:
+    - label: "Cover image"
+      text: "Telly demonstrates image aliases."
+      image: telly
+      size: small
+```
+
+Credit entries can be plain text strings or objects with `label`, `text`, `image`, and `size`.
+
 ## Saves
 
 Loom stores saves in browser local storage. By default, Loom autosaves the current state whenever the game renders a passage.
@@ -329,7 +399,7 @@ ui:
 
 ## Validation
 
-Loom validates stories before play. Validation catches missing start passages, choices pointing to missing passages, unknown fields, unknown stats, undeclared items, and unreachable passages.
+Loom validates stories before play. Validation catches missing start passages, choices pointing to missing passages, unknown fields, unknown stats, undeclared items, unknown image references, and unreachable passages.
 
 Use `?debug=1` to show the debug panel during play.
 

@@ -2,8 +2,31 @@
 
 This list only tracks work that still needs a decision or implementation. Completed items were removed or moved to `docs/devlog.md`.
 # todo
-## when a context window is on a bolded word the whole context seems to be bolded, could be inaccurate but thats my test shows that
+
+## Context tooltip inside bold text
+
+When a context window is on a bolded word, the whole context box seems to become bold. Likely caused by nested `<strong>` styling or inherited font weight in the tooltip. Test with `**[[Tiny Door|tiny_door]]**`.
+
 # Stretch
+
+## Image and cover follow-ups
+
+Basic image support should stay static-file friendly:
+
+- Define top-level image aliases in `images`
+- Store image files in `images/`
+- Reference passage images with `![[image_id]]`
+- Support `small`, `medium`, `large`, and `full` sizes
+- Constrain images to the page width and viewport height
+- Support `cover.image` for the front page
+- Support `credits` with text and image entries
+
+After implementation, possible follow-ups:
+
+- Figure-level links or click-to-enlarge
+- Per-image placement options beyond centered block images
+- Optional raw Markdown image syntax if authors strongly prefer it
+
 ## Context Glossary Follow-Ups
 
 Basic context notes are implemented with:
@@ -23,9 +46,6 @@ Remaining possible work:
 - Accessibility polish beyond basic focus support
 
 Keep this scoped carefully. Basic glossary notes are useful; a complex tooltip engine is probably not worth it yet.
-
-## front page image for the cover image.
-Also a feature for a credits page
 
 ## Hot Reload
 
@@ -60,12 +80,6 @@ Possible examples:
 - Mystery with context glossary notes
 
 The examples should be starting points, not a second documentation system.
-
-## Images
-
-Consider a simple way to include images in passage text or passage metadata.
-
-Keep this static-file friendly. No asset pipeline unless there is a very strong reason.
 
 ## Library Option
 

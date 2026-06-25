@@ -29,7 +29,8 @@ my-story/
 |-- index.html
 |-- style.css
 |-- engine.js
-`-- story.yaml
+|-- story.yaml
+`-- images/
 ```
 
 Then edit:
@@ -70,7 +71,7 @@ A Loom project is intentionally small.
 
 This is the file you edit.
 
-Your passages, choices, text, conditions, flags, stats, inventory, endings, character fields, and glossary notes live here.
+Your passages, choices, text, images, cover settings, credits, conditions, flags, stats, inventory, endings, character fields, and glossary notes live here.
 
 Most authors should spend almost all of their time in `story.yaml`.
 
@@ -169,6 +170,7 @@ The built-in color names are `red`, `blue`, `green`, `gold`, `muted`, `gray`, an
 
 - Passages and choices
 - Simple text formatting for bold, italics, underline, color, quote blocks, and dialogue
+- Image aliases, passage images, cover images, and credit images
 - Character creation fields
 - Optional stats, flags, and inventory
 - Readable `requires` conditions

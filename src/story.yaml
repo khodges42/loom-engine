@@ -5,8 +5,13 @@
 title: "The Tiny Door"
 slug: "the-tiny-door"
 author: "You"
-version: 2
-description: "A tiny Loom example that shows character creation, stats, items, flags, conditions, choices, endings, and context notes."
+version: 3
+description: "A tiny Loom example that shows covers, images, character creation, stats, items, flags, conditions, choices, endings, and context notes."
+
+cover:
+  subtitle: "A short story under the stairs"
+  image: telly
+  image_size: medium
 
 ui:
   auto_save: true
@@ -48,6 +53,23 @@ context:
     label: "Old Key"
     text: "A little iron key with a paper tag that says: NOT FOR THE FRONT DOOR."
 
+images:
+  telly:
+    label: "Telly, the cat"
+    alt: "A sphynx cat looking proud and regal."
+    location: "images/telly.PNG"
+    size: medium
+
+credits:
+  title: "Credits"
+  text: |
+    The Tiny Door is a starter story for testing Loom features.
+  entries:
+    - label: "Cover image"
+      text: "Telly demonstrates top-level image aliases, cover images, passage images, and credit images."
+      image: telly
+      size: small
+
 stats:
   nerve: 0
   wit: 0
@@ -83,6 +105,8 @@ passages:
       It is **too small** for a person, but it has a brass handle and a __keyhole__.
 
       > The note beside it says: [red|DO NOT OPEN].
+
+      ![[telly|small]]
 
       You: I really hope this is just a cupboard.
 
@@ -177,6 +201,8 @@ passages:
 
       A locked cabinet leans against one wall. A narrow tunnel slopes into the dark.
       Somewhere below, water runs over stone.
+
+      ![[telly]]
     choices:
       - text: "Unlock the cabinet with the old key."
         goto: cabinet

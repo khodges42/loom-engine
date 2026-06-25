@@ -205,6 +205,7 @@ function mergeChapter(base, chapter, source) {
   }
 
   mergeObject(base, chapter, "context");
+  mergeObject(base, chapter, "images");
   mergeObject(base, chapter, "stats");
   mergeObject(base, chapter, "flags");
 
@@ -375,6 +376,26 @@ function renderHeader() {
   `;
 }
 
+function renderCoverHeader() {
+  const cover = story.cover || {};
+  const title = cover.title || story.title || "Untitled Story";
+  const subtitle = cover.subtitle || story.description || "";
+  const author = cover.author || story.author || "";
+  const image = cover.image ? renderImage(cover.image, cover.image_size || "large", "cover") : "";
+
+  return `
+    ${themeButtonHtml()}
+    <header class="cover-page">
+      <div class="cover-title-group">
+        <h1 class="book-title">${escapeHtml(title)}</h1>
+        ${subtitle ? `<p class="cover-subtitle">${escapeHtml(subtitle)}</p>` : ""}
+      </div>
+      ${image}
+      ${author ? `<p class="cover-author">${escapeHtml(author)}</p>` : ""}
+    </header>
+  `;
+}
+
 function renderStartScreen() {
   const saveInfo = loadSaveInfo();
   const loadDisabled = saveInfo.loadable ? "" : "disabled";
@@ -382,13 +403,15 @@ function renderStartScreen() {
   const saveNote = saveInfo.exists && !saveInfo.loadable
     ? `<p class="save-note">${escapeHtml(saveInfo.reason)}</p>`
     : "";
+  const creditsButton = hasCredits() ? `<button class="secondary-button" id="credits-button" type="button">Credits</button>` : "";
 
   app.innerHTML = `
-    ${renderHeader()}
+    ${renderCoverHeader()}
     ${renderDebugPanel()}
     <section class="front-page">
       <button class="primary-button" id="start-button" type="button">Start</button>
       <button class="secondary-button" id="load-button" type="button" ${loadDisabled}>${loadLabel}</button>
+      ${creditsButton}
       ${saveNote}
     </section>
   `;
@@ -397,7 +420,54 @@ function renderStartScreen() {
 
   document.getElementById("start-button").addEventListener("click", startNewGame);
   document.getElementById("load-button").addEventListener("click", loadGame);
+  const credits = document.getElementById("credits-button");
+  if (credits) credits.addEventListener("click", renderCredits);
   scrollToTop();
+}
+
+function hasCredits() {
+  const credits = story.credits;
+  if (!credits) return false;
+  if (typeof credits === "string") return Boolean(credits.trim());
+  if (Array.isArray(credits)) return credits.length > 0;
+  return Boolean(credits.text || credits.title || credits.entries?.length);
+}
+
+function renderCredits() {
+  const credits = story.credits || {};
+  const title = typeof credits === "object" && !Array.isArray(credits) ? credits.title || "Credits" : "Credits";
+  const text = typeof credits === "string" ? credits : credits.text || "";
+  const entries = Array.isArray(credits) ? credits : credits.entries || [];
+  const entriesHtml = entries.map(renderCreditEntry).join("");
+
+  app.innerHTML = `
+    ${themeButtonHtml()}
+    ${renderDebugPanel()}
+    <h2 class="passage-title">${escapeHtml(title)}</h2>
+    ${text ? `<article class="story-text">${markdownish(interpolate(text))}</article>` : ""}
+    ${entriesHtml ? `<section class="credits-list">${entriesHtml}</section>` : ""}
+    <nav class="toolbar">
+      <button class="secondary-button" id="front-page-button" type="button">Front Page</button>
+    </nav>
+  `;
+
+  bindThemeButton();
+  document.getElementById("front-page-button").addEventListener("click", renderStartScreen);
+  scrollToTop();
+}
+
+function renderCreditEntry(entry) {
+  if (typeof entry === "string") {
+    return `<p>${inlineText(entry, 0)}</p>`;
+  }
+
+  if (!entry || typeof entry !== "object") return "";
+
+  const image = entry.image ? renderImage(entry.image, entry.size, "credit") : "";
+  const text = entry.text ? `<p>${inlineText(entry.text, 0)}</p>` : "";
+  const label = entry.label ? `<h3>${escapeHtml(entry.label)}</h3>` : "";
+
+  return `<article class="credit-entry">${image}<div>${label}${text}</div></article>`;
 }
 
 function renderDebugPanel() {
@@ -727,6 +797,11 @@ function markdownish(text) {
         return `<blockquote>${inlineText(quote, 0).replace(/\n/g, "<br>")}</blockquote>`;
       }
 
+      const image = imageBlockParts(trimmed);
+      if (image) {
+        return renderImage(image.id, image.size);
+      }
+
       const dialogue = dialogueParts(trimmed);
       if (dialogue) {
         return `
@@ -740,6 +815,56 @@ function markdownish(text) {
       return `<p>${inlineText(trimmed, 0).replace(/\n/g, "<br>")}</p>`;
     })
     .join("");
+}
+
+function imageBlockParts(block) {
+  const match = block.match(/^!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/);
+  if (!match) return null;
+
+  return {
+    id: match[1].trim(),
+    size: match[2]?.trim()
+  };
+}
+
+function renderImage(id, sizeOverride, context = "story") {
+  const entry = resolveImageEntry(id);
+  if (!entry) return "";
+
+  const size = imageSize(sizeOverride || entry.size);
+  const caption = entry.label || entry.caption || "";
+  const alt = entry.alt || caption || id;
+  const src = imageSource(entry);
+
+  if (!src) return "";
+
+  return `
+    <figure class="loom-image loom-image-${size} loom-image-${escapeHtml(context)}">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" />
+      ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
+    </figure>
+  `;
+}
+
+function resolveImageEntry(id) {
+  const images = story?.images || {};
+  const entry = images[id];
+
+  if (typeof entry === "string") {
+    return { location: entry };
+  }
+
+  return entry && typeof entry === "object" ? entry : null;
+}
+
+function imageSource(entry) {
+  return entry.location || entry.path || entry.src || "";
+}
+
+function imageSize(size) {
+  const normalized = String(size || "medium").toLowerCase();
+  const sizes = new Set(["small", "medium", "large", "full"]);
+  return sizes.has(normalized) ? normalized : "medium";
 }
 
 function dialogueParts(block) {
@@ -828,7 +953,7 @@ function validateStory(story) {
     return { errors: ["Story YAML must be an object."], warnings };
   }
 
-  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "start", "chapters", "character", "context", "stats", "inventory", "flags", "passages", "debug"]);
+  const topFields = new Set(["title", "slug", "author", "description", "version", "theme", "ui", "cover", "credits", "start", "chapters", "character", "context", "images", "stats", "inventory", "flags", "passages", "debug"]);
   warnUnknownFields(story, topFields, "top level", warnings);
 
   if (!story.title) warnings.push("Missing top-level title.");
@@ -837,9 +962,14 @@ function validateStory(story) {
 
   const passages = story.passages || {};
   const passageIds = new Set(Object.keys(passages));
+  const imageIds = new Set(Object.keys(story.images || {}));
   const stats = new Set(Object.keys(story.stats || {}));
   const items = new Set(story.inventory || []);
   const flags = new Set(Object.keys(story.flags || {}));
+
+  validateImages(story.images, errors, warnings);
+  validateCover(story.cover, imageIds, warnings);
+  validateCredits(story.credits, imageIds, warnings);
 
   if (story.start && !passageIds.has(story.start)) {
     errors.push(`Start passage "${story.start}" does not exist.`);
@@ -856,6 +986,7 @@ function validateStory(story) {
 
     if (!passage.type) warnings.push(`Passage "${id}" has no type. Assuming story.`);
     if (!passage.text && passage.type !== "character") warnings.push(`Passage "${id}" has no text.`);
+    validateImageRefs(passage.text, `passage "${id}"`, imageIds, warnings);
 
     if (passage.type === "character") {
       if (!passage.goto) errors.push(`Character passage "${id}" needs goto.`);
@@ -1022,6 +1153,99 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function validateImages(images, errors, warnings) {
+  if (!images) return;
+
+  if (typeof images !== "object" || Array.isArray(images)) {
+    errors.push("Top-level images must be an object.");
+    return;
+  }
+
+  const allowed = new Set(["label", "caption", "alt", "location", "path", "src", "size"]);
+
+  for (const [id, entry] of Object.entries(images)) {
+    if (typeof entry === "string") continue;
+
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push(`Image "${id}" must be a path string or an object.`);
+      continue;
+    }
+
+    warnUnknownFields(entry, allowed, `image "${id}"`, warnings);
+    if (!imageSource(entry)) warnings.push(`Image "${id}" has no location, path, or src.`);
+    if (entry.size && imageSize(entry.size) !== String(entry.size).toLowerCase()) {
+      warnings.push(`Image "${id}" has unknown size "${entry.size}". Use small, medium, large, or full.`);
+    }
+  }
+}
+
+function validateCover(cover, imageIds, warnings) {
+  if (!cover) return;
+  if (typeof cover !== "object" || Array.isArray(cover)) {
+    warnings.push("Cover should be an object.");
+    return;
+  }
+
+  const allowed = new Set(["title", "subtitle", "author", "image", "image_size"]);
+  warnUnknownFields(cover, allowed, "cover", warnings);
+  if (cover.image && !imageIds.has(cover.image)) warnings.push(`Cover references unknown image "${cover.image}".`);
+  if (cover.image_size && imageSize(cover.image_size) !== String(cover.image_size).toLowerCase()) {
+    warnings.push(`Cover image_size "${cover.image_size}" should be small, medium, large, or full.`);
+  }
+}
+
+function validateCredits(credits, imageIds, warnings) {
+  if (!credits) return;
+  if (typeof credits === "string") return;
+  if (typeof credits !== "object") {
+    warnings.push("Credits should be text, a list, or an object.");
+    return;
+  }
+
+  if (!Array.isArray(credits)) {
+    warnUnknownFields(credits, new Set(["title", "text", "entries"]), "credits", warnings);
+  }
+
+  const entries = Array.isArray(credits) ? credits : credits.entries || [];
+
+  if (!Array.isArray(entries)) {
+    warnings.push("Credits entries should be a list.");
+    return;
+  }
+
+  for (const [index, entry] of entries.entries()) {
+    const label = `credit entry ${index + 1}`;
+    if (typeof entry === "string") continue;
+    if (!entry || typeof entry !== "object") {
+      warnings.push(`${label} should be text or an object.`);
+      continue;
+    }
+
+    warnUnknownFields(entry, new Set(["label", "text", "image", "size"]), label, warnings);
+    if (entry.image && !imageIds.has(entry.image)) warnings.push(`${label} references unknown image "${entry.image}".`);
+    if (entry.size && imageSize(entry.size) !== String(entry.size).toLowerCase()) {
+      warnings.push(`${label} size "${entry.size}" should be small, medium, large, or full.`);
+    }
+  }
+}
+
+function validateImageRefs(text, label, imageIds, warnings) {
+  if (!text) return;
+
+  const pattern = /^\s*!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]\s*$/gm;
+  let match;
+
+  while ((match = pattern.exec(String(text)))) {
+    const id = match[1].trim();
+    const size = match[2]?.trim();
+
+    if (!imageIds.has(id)) warnings.push(`${label} references unknown image "${id}".`);
+    if (size && imageSize(size) !== size.toLowerCase()) {
+      warnings.push(`${label} uses unknown image size "${size}". Use small, medium, large, or full.`);
+    }
+  }
 }
 
 function fingerprintStory(value) {

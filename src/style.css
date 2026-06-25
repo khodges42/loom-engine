@@ -108,6 +108,40 @@ body {
   font-size: 0.9rem;
 }
 
+.cover-page {
+  display: grid;
+  min-height: min(34rem, calc(100vh - 8rem));
+  align-content: space-between;
+  gap: 1.75rem;
+  padding-top: 1rem;
+  text-align: center;
+}
+
+.cover-title-group {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cover-subtitle,
+.cover-author {
+  margin: 0;
+  color: var(--loom-muted);
+  font-family: var(--sans);
+}
+
+.cover-subtitle {
+  max-width: 42rem;
+  margin-inline: auto;
+  font-size: 1rem;
+}
+
+.cover-author {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .passage-title {
   margin: 0 0 1.35rem;
   text-align: center;
@@ -147,6 +181,55 @@ body {
   padding: 0.25rem 0 0.25rem 1rem;
   border-left: 3px solid var(--loom-line);
   color: var(--loom-muted);
+}
+
+.loom-image {
+  margin: 1.5rem auto;
+  text-align: center;
+}
+
+.loom-image img {
+  display: block;
+  width: 100%;
+  max-height: min(70vh, 42rem);
+  margin: 0 auto;
+  border: 1px solid var(--loom-line);
+  border-radius: 8px;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--loom-line), transparent 80%);
+}
+
+.loom-image figcaption {
+  margin-top: 0.5rem;
+  color: var(--loom-muted);
+  font-family: var(--sans);
+  font-size: 0.85rem;
+}
+
+.loom-image-small {
+  max-width: 14rem;
+}
+
+.loom-image-medium {
+  max-width: 24rem;
+}
+
+.loom-image-large {
+  max-width: 38rem;
+}
+
+.loom-image-full {
+  max-width: 100%;
+}
+
+.loom-image-cover {
+  width: min(100%, 30rem);
+  margin-block: 0;
+}
+
+.loom-image-credit {
+  width: min(100%, 10rem);
+  margin: 0;
 }
 
 .underline {
@@ -386,6 +469,33 @@ body[data-theme="dark"] .text-gold {
   text-align: center;
 }
 
+.credits-list {
+  display: grid;
+  gap: 1rem;
+  max-width: 62ch;
+  margin: 0 auto 2rem;
+  font-family: var(--sans);
+}
+
+.credit-entry {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--loom-line);
+}
+
+.credit-entry h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.credit-entry p {
+  margin: 0;
+  color: var(--loom-muted);
+}
+
 .status-message {
   margin: 0;
   color: var(--loom-accent);
@@ -475,5 +585,17 @@ body[data-theme="dark"] .text-gold {
   .dialogue {
     grid-template-columns: 1fr;
     gap: 0.25rem;
+  }
+
+  .cover-page {
+    min-height: auto;
+  }
+
+  .credit-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .loom-image-credit {
+    width: min(100%, 14rem);
   }
 }
