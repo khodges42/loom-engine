@@ -505,8 +505,9 @@ function renderCharacter(passage) {
 
     if (field.type === "choice") {
       const options = (field.options || []).map(option => {
-        const selected = option === current ? "selected" : "";
-        return `<option value="${escapeHtml(option)}" ${selected}>${escapeHtml(option)}</option>`;
+        const optionValue = characterChoiceValue(option);
+        const selected = optionMatchesCurrent(optionValue, current) ? "selected" : "";
+        return `<option value="${escapeHtml(optionValue)}" ${selected}>${escapeHtml(characterChoiceLabel(option))}</option>`;
       }).join("");
 
       return `
@@ -545,7 +546,8 @@ function renderCharacter(passage) {
     const form = new FormData(event.currentTarget);
 
     for (const [id] of entries) {
-      state.character[id] = String(form.get(id) || "").trim();
+      const field = fields[id] || {};
+      state.character[id] = characterFieldValue(field, form.get(id));
     }
 
     goTo(next);
@@ -554,6 +556,44 @@ function renderCharacter(passage) {
   bindToolbar();
   bindContextInteractions();
   scrollToTop();
+}
+
+function characterFieldValue(field, rawValue) {
+  const value = String(rawValue || "").trim();
+
+  if (field.type !== "choice") return value;
+
+  const option = (field.options || []).find(candidate => characterChoiceValue(candidate) === value);
+  if (!option || typeof option !== "object") return value;
+
+  const { label, value: explicitValue, ...data } = option;
+  if (explicitValue !== undefined && Object.keys(data).length === 0) return explicitValue;
+  if (explicitValue !== undefined) return { value: explicitValue, ...data };
+  return data;
+}
+
+function characterChoiceValue(option) {
+  if (option && typeof option === "object") {
+    return String(option.value ?? option.label ?? "");
+  }
+
+  return String(option);
+}
+
+function characterChoiceLabel(option) {
+  if (option && typeof option === "object") {
+    return String(option.label ?? option.value ?? "");
+  }
+
+  return String(option);
+}
+
+function optionMatchesCurrent(optionValue, current) {
+  if (current && typeof current === "object") {
+    return current.value === optionValue || current.label === optionValue;
+  }
+
+  return String(current) === optionValue;
 }
 
 function renderPassage(passage) {
@@ -759,6 +799,11 @@ function requirementMet(req) {
 
   if (req.stats) return objectEntries(req.stats).every(([stat, condition]) => statMatches(stat, condition));
 
+  if (req.character) {
+    const entries = objectEntries(req.character);
+    return entries.length > 0 && entries.every(([path, condition]) => characterMatches(path, condition));
+  }
+
   return false;
 }
 
@@ -774,6 +819,8 @@ function flagMatches(flag, expected) {
 function statMatches(stat, condition) {
   const value = Number(state.stats[stat] || 0);
 
+  if (condition && typeof condition === "object" && "not_eq" in condition) return value !== Number(condition.not_eq);
+
   if (condition && typeof condition === "object") {
     if ("gte" in condition) return value >= Number(condition.gte);
     if ("lte" in condition) return value <= Number(condition.lte);
@@ -787,6 +834,28 @@ function statMatches(stat, condition) {
   }
 
   return false;
+}
+
+function characterMatches(path, condition) {
+  return valueMatches(getPathValue(state.character, path), condition);
+}
+
+function valueMatches(value, condition) {
+  if (condition && typeof condition === "object") {
+    if ("eq" in condition) return value === condition.eq;
+    if ("not_eq" in condition) return value !== condition.not_eq;
+    if ("neq" in condition) return value !== condition.neq;
+    if ("gte" in condition) return Number(value) >= Number(condition.gte);
+    if ("lte" in condition) return Number(value) <= Number(condition.lte);
+    if ("gt" in condition) return Number(value) > Number(condition.gt);
+    if ("lt" in condition) return Number(value) < Number(condition.lt);
+
+    if (value && typeof value === "object") {
+      return Object.entries(condition).every(([key, nestedCondition]) => valueMatches(value?.[key], nestedCondition));
+    }
+  }
+
+  return value === condition;
 }
 
 function listValue(value) {
@@ -848,12 +917,20 @@ function getValue(path) {
     return "";
   }
 
+  if (parts[0] in state.character) {
+    return parts.slice(1).reduce((value, key) => value?.[key], state.character[parts[0]]);
+  }
+
   let root;
   if (parts[0] === "character") root = state.character;
   if (parts[0] === "stats") root = state.stats;
   if (parts[0] === "flags") root = state.flags;
 
   return parts.slice(1).reduce((value, key) => value?.[key], root);
+}
+
+function getPathValue(root, path) {
+  return String(path).split(".").reduce((value, key) => value?.[key], root);
 }
 
 function markdownish(text) {
@@ -1145,10 +1222,11 @@ function validateStory(story) {
   const stats = new Set(Object.keys(story.stats || {}));
   const items = new Set(story.inventory || []);
   const flags = new Set(Object.keys(story.flags || {}));
+  const characterFields = new Set(Object.keys(story.character?.fields || {}));
 
   validateUiOptions(story.ui, errors, warnings);
   validateImages(story.images, errors, warnings);
-  validateContext(story.context, stats, items, flags, errors, warnings);
+  validateContext(story.context, stats, items, flags, characterFields, errors, warnings);
   validateCover(story.cover, imageIds, warnings);
   validateCredits(story.credits, imageIds, warnings);
 
@@ -1179,18 +1257,44 @@ function validateStory(story) {
         errors.push(`Passage "${id}" choices must be a list.`);
       } else {
         passage.choices.forEach((choice, index) => {
-          validateChoice(choice, index, id, passageIds, stats, items, flags, errors, warnings);
+          validateChoice(choice, index, id, passageIds, stats, items, flags, characterFields, errors, warnings);
         });
       }
     }
   }
+
+  validateCharacterFields(story.character?.fields, warnings);
 
   warnUnreachable(story.start, passages, warnings);
 
   return { errors, warnings };
 }
 
-function validateChoice(choice, index, passageId, passageIds, stats, items, flags, errors, warnings) {
+function validateCharacterFields(fields, warnings) {
+  if (!fields) return;
+
+  for (const [id, field] of Object.entries(fields)) {
+    if (field?.type !== "choice") continue;
+    if (!Array.isArray(field.options)) {
+      warnings.push(`Character field "${id}" choice options should be a list.`);
+      continue;
+    }
+
+    field.options.forEach((option, index) => {
+      if (typeof option === "string") return;
+      if (!option || typeof option !== "object" || Array.isArray(option)) {
+        warnings.push(`Option ${index + 1} in character field "${id}" should be text or an object.`);
+        return;
+      }
+
+      if (!("label" in option) && !("value" in option)) {
+        warnings.push(`Option ${index + 1} in character field "${id}" should have label or value.`);
+      }
+    });
+  }
+}
+
+function validateChoice(choice, index, passageId, passageIds, stats, items, flags, characterFields, errors, warnings) {
   const label = `choice ${index + 1} in passage "${passageId}"`;
   const allowed = new Set(["text", "goto", "requires", "conditions", "effects", "add_item", "remove_item"]);
   warnUnknownFields(choice || {}, allowed, label, warnings);
@@ -1199,15 +1303,15 @@ function validateChoice(choice, index, passageId, passageIds, stats, items, flag
   if (!choice.goto) errors.push(`${label} is missing goto.`);
   else if (!passageIds.has(choice.goto)) errors.push(`${label} goes to missing passage "${choice.goto}".`);
 
-  validateRequirements(choice.requires, label, stats, items, flags, warnings);
-  validateRequirements(choice.conditions, label, stats, items, flags, warnings);
+  validateRequirements(choice.requires, label, stats, items, flags, characterFields, warnings);
+  validateRequirements(choice.conditions, label, stats, items, flags, characterFields, warnings);
   validateEffects(choice.effects, label, stats, items, flags, warnings);
 
   if (choice.add_item && !items.has(choice.add_item)) warnings.push(`${label} adds undeclared item "${choice.add_item}".`);
   if (choice.remove_item && !items.has(choice.remove_item)) warnings.push(`${label} removes undeclared item "${choice.remove_item}".`);
 }
 
-function validateRequirements(requires, label, stats, items, flags, warnings) {
+function validateRequirements(requires, label, stats, items, flags, characterFields, warnings) {
   if (!requires) return;
 
   const reqs = [];
@@ -1237,6 +1341,12 @@ function validateRequirements(requires, label, stats, items, flags, warnings) {
     }
     for (const flag of listValue(req.not_flags || [])) {
       if (!flags.has(flag)) warnings.push(`${label} checks unknown flag "${flag}".`);
+    }
+    if (req.character) {
+      for (const path of Object.keys(req.character)) {
+        const field = String(path).split(".")[0];
+        if (!characterFields.has(field)) warnings.push(`${label} checks unknown character field "${field}".`);
+      }
     }
   }
 }
@@ -1276,7 +1386,7 @@ function validateEffects(effects, label, stats, items, flags, warnings) {
   }
 }
 
-function validateContext(context, stats, items, flags, errors, warnings) {
+function validateContext(context, stats, items, flags, characterFields, errors, warnings) {
   if (!context) return;
 
   if (typeof context !== "object" || Array.isArray(context)) {
@@ -1301,7 +1411,7 @@ function validateContext(context, stats, items, flags, errors, warnings) {
         entry.variants.forEach((variant, index) => {
           const label = `variant ${index + 1} in context "${id}"`;
           warnUnknownFields(variant || {}, new Set(["label", "text", "conditions", "requires"]), label, warnings);
-          validateRequirements(variant?.conditions || variant?.requires, label, stats, items, flags, warnings);
+          validateRequirements(variant?.conditions || variant?.requires, label, stats, items, flags, characterFields, warnings);
         });
       }
     }

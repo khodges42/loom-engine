@@ -36,11 +36,26 @@ character:
     pronouns:
       type: choice
       label: "Pronouns"
-      default: "they/them"
+      default: "they"
       options:
-        - "they/them"
-        - "she/her"
-        - "he/him"
+        - label: "they/them"
+          value: "they"
+          subject: "they"
+          object: "them"
+          possessive: "their"
+          reflexive: "themself"
+        - label: "she/her"
+          value: "she"
+          subject: "she"
+          object: "her"
+          possessive: "her"
+          reflexive: "herself"
+        - label: "he/him"
+          value: "he"
+          subject: "he"
+          object: "him"
+          possessive: "his"
+          reflexive: "himself"
     first_instinct:
       type: choice
       label: "First instinct"
@@ -122,6 +137,7 @@ passages:
       You: I really hope this is just a cupboard.
 
       Your first instinct is to {{first_instinct}}.
+      If anyone asks, {{pronouns.subject}} can explain {{pronouns.reflexive}}.
     choices:
       - text: "Take the lantern from the wall."
         goto: foyer_after_lantern

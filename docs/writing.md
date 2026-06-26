@@ -297,6 +297,26 @@ conditions:
       lt: 3
 ```
 
+Character fields can also be checked. Use dot paths for object values:
+
+```yaml
+conditions:
+  character:
+    pronouns.value:
+      eq: no_pronouns
+```
+
+Use `not_eq` for the opposite branch:
+
+```yaml
+conditions:
+  character:
+    pronouns.value:
+      not_eq: no_pronouns
+```
+
+Character conditions also support `gt`, `gte`, `lt`, and `lte` when the stored character value is numeric.
+
 Combine conditions with `all` or `any`.
 
 ```yaml
@@ -323,6 +343,23 @@ character:
       type: text
       label: "Name"
       default: "Alex"
+    pronouns:
+      type: choice
+      label: "Pronouns"
+      default: "they"
+      options:
+        - label: "they/them"
+          value: "they"
+          subject: "they"
+          object: "them"
+          possessive: "their"
+          reflexive: "themself"
+        - label: "she/her"
+          value: "she"
+          subject: "she"
+          object: "her"
+          possessive: "her"
+          reflexive: "herself"
     first_instinct:
       type: choice
       label: "First instinct"
@@ -343,7 +380,10 @@ Use character values in text with double braces:
 ```yaml
 text: |
   {{name}} steps into the hall.
+  {{pronouns.subject}} checks {{pronouns.possessive}} coat pocket.
 ```
+
+Choice field options can be simple strings or objects. Object options display their `label` in the form and store the rest of the object in `state.character`, which makes patterns like pronoun helpers possible without special pronoun syntax.
 
 ## Endings
 
