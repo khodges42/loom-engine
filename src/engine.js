@@ -453,6 +453,7 @@ function renderCredits() {
 
   bindThemeButton();
   document.getElementById("front-page-button").addEventListener("click", renderStartScreen);
+  bindContextInteractions();
   scrollToTop();
 }
 
@@ -551,11 +552,12 @@ function renderCharacter(passage) {
   });
 
   bindToolbar();
+  bindContextInteractions();
   scrollToTop();
 }
 
 function renderPassage(passage) {
-  const visibleChoices = (passage.choices || []).filter(choice => requirementsMet(choice.requires));
+  const visibleChoices = (passage.choices || []).filter(choice => choiceConditionsMet(choice));
 
   const choicesHtml = visibleChoices.map((choice, index) => {
     return `<button class="choice-button" data-choice="${index}" type="button">${escapeHtml(choice.text)}</button>`;
@@ -591,6 +593,7 @@ function renderPassage(passage) {
   if (restartEnding) restartEnding.addEventListener("click", resetGame);
 
   bindToolbar();
+  bindContextInteractions();
   scrollToTop();
 }
 
@@ -662,6 +665,43 @@ function bindToolbar() {
   }
 }
 
+function bindContextInteractions() {
+  document.querySelectorAll(".context-term").forEach(term => {
+    term.addEventListener("click", event => {
+      event.stopPropagation();
+      if (event.target.closest(".context-box")) return;
+      const wasOpen = term.classList.contains("is-open");
+      closeContextTerms(term);
+
+      if (wasOpen) {
+        term.classList.remove("is-open");
+        term.blur();
+      } else {
+        term.classList.add("is-open");
+      }
+    });
+  });
+}
+
+document.addEventListener("pointerdown", event => {
+  if (event.target.closest?.(".context-term")) return;
+  closeContextTerms();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeContextTerms();
+});
+
+function closeContextTerms(except) {
+  document.querySelectorAll(".context-term.is-open").forEach(term => {
+    if (term !== except) term.classList.remove("is-open");
+  });
+
+  if (!except && document.activeElement?.classList?.contains("context-term")) {
+    document.activeElement.blur();
+  }
+}
+
 function goTo(sceneId) {
   if (!sceneId || !story.passages?.[sceneId]) {
     renderFatalError(new Error(`Cannot go to missing passage: ${sceneId}`));
@@ -699,20 +739,62 @@ function requirementMet(req) {
 
   if (req.item) return state.inventory.includes(req.item);
 
+  if (req.items) return listValue(req.items).every(item => state.inventory.includes(item));
+
+  if (req.not_item) return !state.inventory.includes(req.not_item);
+
+  if (req.not_items) return listValue(req.not_items).every(item => !state.inventory.includes(item));
+
   if (req.flag) return Boolean(state.flags[req.flag]);
 
   if (req.not_flag) return !Boolean(state.flags[req.not_flag]);
 
+  if (req.flags) return objectEntries(req.flags).every(([flag, expected]) => flagMatches(flag, expected));
+
+  if (req.not_flags) return listValue(req.not_flags).every(flag => !Boolean(state.flags[flag]));
+
   if (req.stat) {
-    const value = Number(state.stats[req.stat] || 0);
-    if ("gte" in req) return value >= Number(req.gte);
-    if ("lte" in req) return value <= Number(req.lte);
-    if ("gt" in req) return value > Number(req.gt);
-    if ("lt" in req) return value < Number(req.lt);
-    if ("eq" in req) return value === Number(req.eq);
+    return statMatches(req.stat, req);
+  }
+
+  if (req.stats) return objectEntries(req.stats).every(([stat, condition]) => statMatches(stat, condition));
+
+  return false;
+}
+
+function choiceConditionsMet(choice) {
+  return requirementsMet(choice.requires) && requirementsMet(choice.conditions);
+}
+
+function flagMatches(flag, expected) {
+  if (typeof expected === "boolean") return Boolean(state.flags[flag]) === expected;
+  return state.flags[flag] === expected;
+}
+
+function statMatches(stat, condition) {
+  const value = Number(state.stats[stat] || 0);
+
+  if (condition && typeof condition === "object") {
+    if ("gte" in condition) return value >= Number(condition.gte);
+    if ("lte" in condition) return value <= Number(condition.lte);
+    if ("gt" in condition) return value > Number(condition.gt);
+    if ("lt" in condition) return value < Number(condition.lt);
+    if ("eq" in condition) return value === Number(condition.eq);
+  }
+
+  if (condition !== undefined && (typeof condition !== "object" || condition === null)) {
+    return value === Number(condition);
   }
 
   return false;
+}
+
+function listValue(value) {
+  return Array.isArray(value) ? value : [value];
+}
+
+function objectEntries(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.entries(value) : [];
 }
 
 function applyEffects(effects) {
@@ -900,31 +982,118 @@ function textColor(color) {
 function renderContextRefs(text, depth) {
   if (!story?.context || depth > 4) return escapeHtml(text);
 
+  const source = String(text);
   const parts = [];
   const pattern = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
   let lastIndex = 0;
   let match;
 
-  while ((match = pattern.exec(text))) {
-    parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+  while ((match = pattern.exec(source))) {
+    parts.push(renderAutoContextRefs(source.slice(lastIndex, match.index), depth));
 
     const display = match[1].trim();
     const key = (match[2] || match[1]).trim();
-    const entry = resolveContextEntry(key);
-
-    if (!entry) {
-      parts.push(escapeHtml(display));
-    } else {
-      const label = entry.label || display;
-      const body = entry.text || "";
-      parts.push(`<span class="context-term" tabindex="0">${escapeHtml(display)}<span class="context-box" role="tooltip"><strong>${escapeHtml(label)}</strong><span>${inlineText(body, depth + 1)}</span></span></span>`);
-    }
+    parts.push(renderContextTerm(display, key, depth));
 
     lastIndex = pattern.lastIndex;
   }
 
+  parts.push(renderAutoContextRefs(source.slice(lastIndex), depth));
+  return parts.join("");
+}
+
+function renderAutoContextRefs(text, depth) {
+  if (!story?.context || story.ui?.auto_context_links === false || depth > 0) {
+    return escapeHtml(text);
+  }
+
+  const matches = autoContextMatches(text);
+  if (!matches.length) return escapeHtml(text);
+
+  const parts = [];
+  let lastIndex = 0;
+
+  for (const match of matches) {
+    parts.push(escapeHtml(text.slice(lastIndex, match.index)));
+    parts.push(renderContextTerm(match.display, match.key, depth));
+    lastIndex = match.index + match.display.length;
+  }
+
   parts.push(escapeHtml(text.slice(lastIndex)));
   return parts.join("");
+}
+
+function autoContextMatches(text) {
+  const candidates = contextAutoLinkCandidates();
+  if (!candidates.length) return [];
+
+  const matches = [];
+  let index = 0;
+
+  while (index < text.length) {
+    let found = null;
+
+    for (const candidate of candidates) {
+      if (!wordMatchesAt(text, index, candidate.term)) continue;
+      found = {
+        key: candidate.key,
+        display: text.slice(index, index + candidate.term.length),
+        index
+      };
+      break;
+    }
+
+    if (found) {
+      matches.push(found);
+      index += found.display.length;
+    } else {
+      index += 1;
+    }
+  }
+
+  return matches;
+}
+
+function contextAutoLinkCandidates() {
+  const candidates = [];
+
+  for (const [key, entry] of Object.entries(story?.context || {})) {
+    const terms = new Set([key, entry?.label].filter(Boolean).map(String));
+
+    for (const term of terms) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9 _'-]*$/.test(term)) continue;
+      candidates.push({ key, term });
+    }
+  }
+
+  return candidates.sort((a, b) => b.term.length - a.term.length);
+}
+
+function wordMatchesAt(text, index, term) {
+  if (text.slice(index, index + term.length).toLowerCase() !== term.toLowerCase()) return false;
+
+  const before = index > 0 ? text[index - 1] : "";
+  const after = text[index + term.length] || "";
+
+  return !isWordChar(before) && !isWordChar(after);
+}
+
+function isWordChar(char) {
+  return /[A-Za-z0-9_]/.test(char);
+}
+
+function renderContextTerm(display, key, depth) {
+  const entry = resolveContextEntry(key);
+
+  if (!entry) {
+    return escapeHtml(display);
+  }
+
+  const active = activeContextEntry(entry);
+  const label = active.label || entry.label || display;
+  const body = active.text || "";
+
+  return `<span class="context-term" tabindex="0">${escapeHtml(display)}<span class="context-box" role="tooltip"><strong>${escapeHtml(label)}</strong><span>${inlineText(body, depth + 1)}</span></span></span>`;
 }
 
 function resolveContextEntry(key) {
@@ -935,6 +1104,16 @@ function resolveContextEntry(key) {
   if (context[normalized]) return context[normalized];
 
   return Object.values(context).find(entry => normalizeContextKey(entry?.label || "") === normalized);
+}
+
+function activeContextEntry(entry) {
+  for (const variant of entry?.variants || []) {
+    if (requirementsMet(variant.conditions || variant.requires)) {
+      return { ...entry, ...variant };
+    }
+  }
+
+  return entry || {};
 }
 
 function normalizeContextKey(key) {
@@ -967,7 +1146,9 @@ function validateStory(story) {
   const items = new Set(story.inventory || []);
   const flags = new Set(Object.keys(story.flags || {}));
 
+  validateUiOptions(story.ui, errors, warnings);
   validateImages(story.images, errors, warnings);
+  validateContext(story.context, stats, items, flags, errors, warnings);
   validateCover(story.cover, imageIds, warnings);
   validateCredits(story.credits, imageIds, warnings);
 
@@ -1011,7 +1192,7 @@ function validateStory(story) {
 
 function validateChoice(choice, index, passageId, passageIds, stats, items, flags, errors, warnings) {
   const label = `choice ${index + 1} in passage "${passageId}"`;
-  const allowed = new Set(["text", "goto", "requires", "effects", "add_item", "remove_item"]);
+  const allowed = new Set(["text", "goto", "requires", "conditions", "effects", "add_item", "remove_item"]);
   warnUnknownFields(choice || {}, allowed, label, warnings);
 
   if (!choice.text) errors.push(`${label} is missing text.`);
@@ -1019,6 +1200,7 @@ function validateChoice(choice, index, passageId, passageIds, stats, items, flag
   else if (!passageIds.has(choice.goto)) errors.push(`${label} goes to missing passage "${choice.goto}".`);
 
   validateRequirements(choice.requires, label, stats, items, flags, warnings);
+  validateRequirements(choice.conditions, label, stats, items, flags, warnings);
   validateEffects(choice.effects, label, stats, items, flags, warnings);
 
   if (choice.add_item && !items.has(choice.add_item)) warnings.push(`${label} adds undeclared item "${choice.add_item}".`);
@@ -1033,9 +1215,29 @@ function validateRequirements(requires, label, stats, items, flags, warnings) {
 
   for (const req of reqs) {
     if (req.stat && !stats.has(req.stat)) warnings.push(`${label} requires unknown stat "${req.stat}".`);
+    if (req.stats) {
+      for (const stat of Object.keys(req.stats)) {
+        if (!stats.has(stat)) warnings.push(`${label} requires unknown stat "${stat}".`);
+      }
+    }
     if (req.item && !items.has(req.item)) warnings.push(`${label} requires undeclared item "${req.item}".`);
+    for (const item of listValue(req.items || [])) {
+      if (!items.has(item)) warnings.push(`${label} requires undeclared item "${item}".`);
+    }
+    if (req.not_item && !items.has(req.not_item)) warnings.push(`${label} checks undeclared item "${req.not_item}".`);
+    for (const item of listValue(req.not_items || [])) {
+      if (!items.has(item)) warnings.push(`${label} checks undeclared item "${item}".`);
+    }
     if (req.flag && !flags.has(req.flag)) warnings.push(`${label} requires unknown flag "${req.flag}".`);
     if (req.not_flag && !flags.has(req.not_flag)) warnings.push(`${label} checks unknown flag "${req.not_flag}".`);
+    if (req.flags) {
+      for (const flag of Object.keys(req.flags)) {
+        if (!flags.has(flag)) warnings.push(`${label} requires unknown flag "${flag}".`);
+      }
+    }
+    for (const flag of listValue(req.not_flags || [])) {
+      if (!flags.has(flag)) warnings.push(`${label} checks unknown flag "${flag}".`);
+    }
   }
 }
 
@@ -1072,6 +1274,50 @@ function validateEffects(effects, label, stats, items, flags, warnings) {
       if (!flags.has(flag)) warnings.push(`${label} modifies unknown flag "${flag}".`);
     }
   }
+}
+
+function validateContext(context, stats, items, flags, errors, warnings) {
+  if (!context) return;
+
+  if (typeof context !== "object" || Array.isArray(context)) {
+    errors.push("Top-level context must be an object.");
+    return;
+  }
+
+  const allowed = new Set(["label", "text", "variants"]);
+
+  for (const [id, entry] of Object.entries(context)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      errors.push(`Context "${id}" must be an object.`);
+      continue;
+    }
+
+    warnUnknownFields(entry, allowed, `context "${id}"`, warnings);
+
+    if (entry.variants) {
+      if (!Array.isArray(entry.variants)) {
+        errors.push(`Context "${id}" variants must be a list.`);
+      } else {
+        entry.variants.forEach((variant, index) => {
+          const label = `variant ${index + 1} in context "${id}"`;
+          warnUnknownFields(variant || {}, new Set(["label", "text", "conditions", "requires"]), label, warnings);
+          validateRequirements(variant?.conditions || variant?.requires, label, stats, items, flags, warnings);
+        });
+      }
+    }
+  }
+}
+
+function validateUiOptions(ui, errors, warnings) {
+  if (!ui) return;
+
+  if (typeof ui !== "object" || Array.isArray(ui)) {
+    errors.push("Top-level ui must be an object.");
+    return;
+  }
+
+  const allowed = new Set(["auto_save", "show_back", "show_stats", "show_inventory", "auto_context_links"]);
+  warnUnknownFields(ui, allowed, "ui", warnings);
 }
 
 function warnUnknownFields(obj, allowed, context, warnings) {

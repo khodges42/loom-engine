@@ -173,13 +173,13 @@ The built-in color names are `red`, `blue`, `green`, `gold`, `muted`, `gray`, an
 - Image aliases, passage images, cover images, and credit images
 - Character creation fields
 - Optional stats, flags, and inventory
-- Readable `requires` conditions
+- Readable `conditions` for hiding unavailable choices
 - Readable `effects`
 - Endings
 - Autosave by default, with Load Save on the front page when a compatible save exists
 - Save compatibility checks using engine version, story version, and story content hash
 - YAML validation with clear missing-passage and unknown-reference messages
-- Context glossary notes with `[[term]]` and `[[display text|context_id]]`
+- Context glossary notes with `[[term]]`, automatic whole-word links, and conditional variants
 - Optional chapter files for longer stories
 - Theme variables in `style.css`
 - Friendly local-file fallback when `story.yaml` cannot be fetched
@@ -204,6 +204,8 @@ text: |
 ```
 
 The highlighted text can be hovered or focused to show the note. Glossary text can include another glossary reference, but deeper tooltip behavior is intentionally basic for now.
+
+Loom can also link whole-word context matches automatically. Set `ui.auto_context_links: false` if you only want explicit `[[...]]` links.
 
 ## Philosophy
 

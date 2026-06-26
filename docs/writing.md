@@ -159,6 +159,27 @@ choices:
 
 Loom validates that every `goto` points to an existing passage.
 
+## Story Options
+
+Story options live under `ui`. If an option is missing, Loom uses the default.
+
+```yaml
+ui:
+  auto_save: true
+  show_back: false
+  show_stats: false
+  show_inventory: false
+  auto_context_links: true
+```
+
+Options:
+
+- `auto_save`: saves automatically whenever a passage renders. Defaults to `true`.
+- `show_back`: shows a Back button during play. Defaults to `false`.
+- `show_stats`: shows declared stats in the status area. Defaults to `false`.
+- `show_inventory`: shows inventory in the status area. Defaults to `false`.
+- `auto_context_links`: automatically links whole-word context matches in passage text. Defaults to `true`.
+
 ## Stats
 
 Declare stats at the top level.
@@ -231,36 +252,63 @@ ui:
   show_inventory: true
 ```
 
-## Requirements
+## Conditions
 
-Use `requires` to show a choice only when the player meets a condition.
+Use `conditions` to show a choice only when the player meets a condition.
 
 ```yaml
-requires:
+conditions:
   item: old_key
 ```
 
 ```yaml
-requires:
+conditions:
   flag: opened_cellar
 ```
 
 ```yaml
-requires:
+conditions:
   stat: nerve
   gte: 2
 ```
 
-Combine requirements with `all` or `any`.
+You can also group flags, items, and stats:
 
 ```yaml
-requires:
+conditions:
+  flags:
+    opened_cellar: true
+    found_map: false
+```
+
+```yaml
+conditions:
+  items:
+    - lantern
+    - old_key
+```
+
+```yaml
+conditions:
+  stats:
+    nerve:
+      gte: 2
+    suspicion:
+      lt: 3
+```
+
+Combine conditions with `all` or `any`.
+
+```yaml
+conditions:
   all:
     - item: lantern
     - flag: found_map
 ```
 
 Supported stat comparisons are `gte`, `lte`, `gt`, `lt`, and `eq`.
+
+`requires` is still supported as an older name for `conditions`.
 
 ## Character Fields
 
@@ -337,6 +385,24 @@ text: |
 ```
 
 The text before the pipe is displayed. The text after the pipe is the context ID.
+
+When `ui.auto_context_links` is not `false`, Loom also links plain whole-word matches for context IDs and labels. For example, a context entry labeled `Pine` can auto-link `Pine`, but not `pineapple`.
+
+Use variants when context text should change with story state:
+
+```yaml
+context:
+  jack:
+    label: "Jack"
+    text: "Jack lives down the road."
+    variants:
+      - conditions:
+          flags:
+            jack_married: true
+        text: "Jack lives down the road with his spouse."
+```
+
+The first matching variant overrides the base entry for display. Variants use the same `conditions` syntax as choices.
 
 ## Credits
 
